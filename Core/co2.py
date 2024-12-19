@@ -37,11 +37,10 @@ level = 0  # Livello iniziale
 prev_level = 0  # Memorizza il livello precedente per l'isteresi
 
 # Soglie per validare braccia distese
-SHOULDER_DISTANCE = 0.45  # Distanza tra le spalle in metri
-ARM_LENGTH = 0.60  # Lunghezza del braccio in metri
+ARM_MIN_LENGTH = 0.45  # Lunghezza minima per considerare un braccio disteso (in metri)
 
 # Tolleranza per la differenza di altezza tra i polsi
-HAND_HEIGHT_TOLERANCE = 0.30  # Tolleranza maggiore, adesso è 30%
+HAND_HEIGHT_TOLERANCE = 0.10  # Tolleranza maggiore, adesso è 10 cm
 
 # Tempo di attesa iniziale per stabilizzare
 STABILITY_WAIT_TIME = 1.0  # Tempo di attesa in secondi
@@ -52,18 +51,6 @@ LEVEL_CHANGE_THRESHOLD = 1  # La quantità minima di cambiamento per modificare 
 # Funzione per calcolare la distanza in 3D
 def calculate_distance_3d(p1, p2):
     return np.sqrt((p1[0] - p2[0]) ** 2 + (p1[1] - p2[1]) ** 2 + (p1[2] - p2[2]) ** 2)
-
-# Funzione per calcolare la distanza euclidea tra due punti 3D in metri date come riferimento le spalle
-def calculate_conversion_distances(p1, p2, right_shoulder, left_shoulder):
-    shoulder_distance_px = round(np.sqrt((right_shoulder[0] - left_shoulder[0])**2 + (right_shoulder[1] - left_shoulder[1])**2),3) #distanza spalle in pixel 2D
-    conversion_factor = SHOULDER_DISTANCE / shoulder_distance_px
-    #print(f"posizione polso destro x px: {p1[0]}") #Le coordinate sono a posto
-    #print(f"posizione spalla destra x px: {p2[0]}")
-    #print(f"posizione polso destro y px: {p1[1]}")
-    #print(f"posizione spalla destra y px: {p2[1]}")
-    distance_px = np.sqrt((p1[0] - p2[0])**2 + (p1[1] - p2[1])**2)
-    print(f"distance_px: {distance_px * conversion_factor}")
-    return distance_px * conversion_factor
 
 # Funzione per calcolare il livello proporzionale
 def calculate_level(pose_landmarks, w, h, depth_image):
@@ -82,50 +69,49 @@ def calculate_level(pose_landmarks, w, h, depth_image):
         left_shoulder_px = (int(left_shoulder.x * w), int(left_shoulder.y * h))
         right_wrist_px = (int(right_wrist.x * w), int(right_wrist.y * h))
         left_wrist_px = (int(left_wrist.x * w), int(left_wrist.y * h))
-#
-        ## Ottieni profondità dai frame di profondità
-        #right_shoulder_depth = depth_image[right_shoulder_px[1], right_shoulder_px[0]] * depth_scale
-        #left_shoulder_depth = depth_image[left_shoulder_px[1], left_shoulder_px[0]] * depth_scale
-        #right_wrist_depth = depth_image[right_wrist_px[1], right_wrist_px[0]] * depth_scale
-        #left_wrist_depth = depth_image[left_wrist_px[1], left_wrist_px[0]] * depth_scale
-#
-        ## Coordinate 3D
-        #right_shoulder_3d = (right_shoulder.x, right_shoulder.y, right_shoulder_depth)
-        #left_shoulder_3d = (left_shoulder.x, left_shoulder.y, left_shoulder_depth)
-        #right_wrist_3d = (right_wrist.x, right_wrist.y, right_wrist_depth)
-        #left_wrist_3d = (left_wrist.x, left_wrist.y, left_wrist_depth)
-#
-        # Calcola la distanza 2D tra spalla e polso
-        right_arm_length = calculate_conversion_distances(right_wrist_px, right_shoulder_px, right_shoulder_px, left_shoulder_px)
-        left_arm_length = calculate_conversion_distances(left_wrist_px, left_shoulder_px, right_shoulder_px, left_shoulder_px)
+
+        # Ottieni profondità dai frame di profondità
+        right_shoulder_depth = depth_image[right_shoulder_px[1], right_shoulder_px[0]] * depth_scale
+        left_shoulder_depth = depth_image[left_shoulder_px[1], left_shoulder_px[0]] * depth_scale
+        right_wrist_depth = depth_image[right_wrist_px[1], right_wrist_px[0]] * depth_scale
+        left_wrist_depth = depth_image[left_wrist_px[1], left_wrist_px[0]] * depth_scale
+
+        # Coordinate 3D
+        right_shoulder_3d = (right_shoulder.x, right_shoulder.y, right_shoulder_depth)
+        left_shoulder_3d = (left_shoulder.x, left_shoulder.y, left_shoulder_depth)
+        right_wrist_3d = (right_wrist.x, right_wrist.y, right_wrist_depth)
+        left_wrist_3d = (left_wrist.x, left_wrist.y, left_wrist_depth)
+
+        # Calcola la distanza 3D tra spalla e polso
+        right_arm_length = calculate_distance_3d(right_shoulder_3d, right_wrist_3d)
+        left_arm_length = calculate_distance_3d(left_shoulder_3d, left_wrist_3d)
 
         # Verifica che entrambe le braccia siano distese
-        if (right_arm_length < ARM_LENGTH) or (left_arm_length < ARM_LENGTH):
+        if right_arm_length < ARM_MIN_LENGTH or left_arm_length < ARM_MIN_LENGTH:
             level = 0
-            print("Braccia non distese")
             return
 
-        #Altezza media delle mani in %
+        # Altezza media delle mani
         avg_hand_height = (right_wrist.y + left_wrist.y) / 2
 
-        # Altezza media delle spalle e delle anche in %
+        # Altezza media delle spalle e delle anche
         avg_shoulder_height = (right_shoulder.y + left_shoulder.y) / 2
         avg_hip_height = (right_hip.y + left_hip.y) / 2
-#
+
         # Calcolo della differenza di altezza tra i polsi
         wrist_height_diff = abs(right_wrist.y - left_wrist.y)
-#
+
         # Se non rileva entrambe le mani, il livello non può essere incrementato
-        if not (right_arm_length >= ARM_LENGTH and left_arm_length >= ARM_LENGTH):
+        if not (right_arm_length >= ARM_MIN_LENGTH and left_arm_length >= ARM_MIN_LENGTH):
             level = 0
             prev_level = level
             return
-#
+
         # Condizioni per aumentare il livello: entrambe le braccia devono essere sollevate sopra le anche,
         # distese, e le mani devono essere a livello simile
         if right_wrist.y < avg_hip_height and left_wrist.y < avg_hip_height:  # Le mani sono sopra le anche
             if wrist_height_diff < HAND_HEIGHT_TOLERANCE:  # Le mani sono a livelli simili
-                #Calcola il livello in base all'altezza delle mani rispetto alle anche
+                # Calcola il livello in base all'altezza delle mani rispetto alle anche
                 normalized_height = (avg_hip_height - avg_hand_height) / (avg_hip_height - avg_shoulder_height * 0.5)
                 new_level = int(normalized_height * max_level)  # Mappa a un livello tra 0 e max_level
             else:
@@ -137,8 +123,9 @@ def calculate_level(pose_landmarks, w, h, depth_image):
 
         # Applicare l'isteresi: il livello cambierà solo se la differenza con il livello precedente è significativa
         if abs(new_level - prev_level) >= LEVEL_CHANGE_THRESHOLD:
-            level = new_level
+            level = min(new_level, max_level)  # Tronca il livello a max_level (10)
             prev_level = level
+
 
     except IndexError:
         pass
