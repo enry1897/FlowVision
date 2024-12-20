@@ -89,13 +89,13 @@ def calculate_conversion_distances(p1, p2, right_shoulder, left_shoulder):
 
 
 # Funzione principale per controllare se il braccio destro è alzato e non è alzato il braccio sx --- TRACKING 1
-def is_right_arm_raised(landmarks, w, h):
+def is_right_arm_raised(my_landmarks, w, h):
     try:
         # Ottieni coordinate di spalla e polso destro
-        right_shoulder = landmarks[mp_pose.PoseLandmark.RIGHT_SHOULDER]
-        left_shoulder = landmarks[mp_pose.PoseLandmark.LEFT_SHOULDER]
-        right_wrist = landmarks[mp_pose.PoseLandmark.RIGHT_WRIST]
-        left_wrist = landmarks[mp_pose.PoseLandmark.LEFT_WRIST]
+        right_shoulder = my_landmarks[mp_pose.PoseLandmark.RIGHT_SHOULDER]
+        left_shoulder = my_landmarks[mp_pose.PoseLandmark.LEFT_SHOULDER]
+        right_wrist = my_landmarks[mp_pose.PoseLandmark.RIGHT_WRIST]
+        left_wrist = my_landmarks[mp_pose.PoseLandmark.LEFT_WRIST]
 
         # Converti in pixel
         right_shoulder_px = [right_shoulder.x * w, right_shoulder.y * h, right_shoulder.z]
@@ -107,7 +107,7 @@ def is_right_arm_raised(landmarks, w, h):
 
         # Controlla se il polso è significativamente sopra la spalla e non è alzato il braccio sx
         if (calculate_conversion_distances(right_wrist_px, right_shoulder_px, right_shoulder_px, left_shoulder_px) > ARM_LENGTH) and (right_wrist_px[1] + 50 < right_shoulder_px[1]):  # Range di tolleranza (150 pixel)
-            if(left_wrist_px[1] > left_shoulder_px[1]):
+            if left_wrist_px[1] > left_shoulder_px[1]:
                return True
             else :
                 return False
@@ -137,11 +137,11 @@ def check_hands_on_heart(pose_landmarks, w, h):
         left_wrist_px = (int(left_wrist.x * w), int(left_wrist.y * h))
         left_hip_px = (int(left_hip.x * w), int(left_hip.y * h))
 
-        if right_wrist.y > right_shoulder.y and right_wrist.y < left_hip.y:
+        if right_shoulder.y < right_wrist.y < left_hip.y:
             # Definiamo la zona del cuore come il centro tra le spalle
             #print("calcolo cuore")
             heart_x = (right_shoulder.x + left_shoulder.x) / 2
-            heart_y = (right_shoulder.y) - ((right_shoulder.y - left_hip.y) / 4 )  # Posizione tra le spalle, nella zona del petto
+            heart_y = right_shoulder.y - ((right_shoulder.y - left_hip.y) / 4)  # Posizione tra le spalle, nella zona del petto
 
             # Zona del cuore in pixel
             heart_region = (int(heart_x * w), int(heart_y * h))
@@ -163,7 +163,7 @@ def check_hands_on_heart(pose_landmarks, w, h):
 
 
 # Funzione per calcolare il livello proporzionale --- TRACKING 3 -- CO2
-def calculate_level(pose_landmarks, w, h, depth_image):
+def calculate_level(pose_landmarks, my_w, my_h, my_depth_image):
     global level, prev_level
     try:
         # Coordinate chiave: spalle, anche, polsi
@@ -175,16 +175,16 @@ def calculate_level(pose_landmarks, w, h, depth_image):
         left_wrist = pose_landmarks[mp_pose.PoseLandmark.LEFT_WRIST]
 
         # Converti in pixel
-        right_shoulder_px = (int(right_shoulder.x * w), int(right_shoulder.y * h))
-        left_shoulder_px = (int(left_shoulder.x * w), int(left_shoulder.y * h))
-        right_wrist_px = (int(right_wrist.x * w), int(right_wrist.y * h))
-        left_wrist_px = (int(left_wrist.x * w), int(left_wrist.y * h))
+        right_shoulder_px = (int(right_shoulder.x * my_w), int(right_shoulder.y * my_h))
+        left_shoulder_px = (int(left_shoulder.x * my_w), int(left_shoulder.y * my_h))
+        right_wrist_px = (int(right_wrist.x * my_w), int(right_wrist.y * my_h))
+        left_wrist_px = (int(left_wrist.x * my_w), int(left_wrist.y * my_h))
 
         # Ottieni profondità dai frame di profondità
-        right_shoulder_depth = depth_image[right_shoulder_px[1], right_shoulder_px[0]] * depth_scale
-        left_shoulder_depth = depth_image[left_shoulder_px[1], left_shoulder_px[0]] * depth_scale
-        right_wrist_depth = depth_image[right_wrist_px[1], right_wrist_px[0]] * depth_scale
-        left_wrist_depth = depth_image[left_wrist_px[1], left_wrist_px[0]] * depth_scale
+        right_shoulder_depth = my_depth_image[right_shoulder_px[1], right_shoulder_px[0]] * depth_scale
+        left_shoulder_depth = my_depth_image[left_shoulder_px[1], left_shoulder_px[0]] * depth_scale
+        right_wrist_depth = my_depth_image[right_wrist_px[1], right_wrist_px[0]] * depth_scale
+        left_wrist_depth = my_depth_image[left_wrist_px[1], left_wrist_px[0]] * depth_scale
 
         # Coordinate 3D
         right_shoulder_3d = (right_shoulder.x, right_shoulder.y, right_shoulder_depth)
@@ -241,14 +241,7 @@ def calculate_level(pose_landmarks, w, h, depth_image):
         pass
 
 
-
-
-
-
 # MAIN LOOP
-
-
-
 
 
 try:
