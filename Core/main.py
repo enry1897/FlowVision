@@ -70,10 +70,10 @@ body_points = {
     "left_hip": (0.0, 0.0, 0.0),
     "right_wrist": (0.0, 0.0, 0.0),
     "left_wrist": (0.0, 0.0, 0.0),
-    "right_shoulder_depth": (0.0, 0.0),
-    "left_shoulder_depth": (0.0, 0.0),
-    "right_wrist_depth": (0.0, 0.0),
-    "left_wrist_depth": (0.0, 0.0),
+    "right_shoulder_depth": (0.0, 0.0,0.0),
+    "left_shoulder_depth": (0.0, 0.0,0.0),
+    "right_wrist_depth": (0.0, 0.0,0.0),
+    "left_wrist_depth": (0.0, 0.0,0.0),
     "right_shoulder_px": (0.0, 0.0, 0.0),
     "left_shoulder_px": (0.0, 0.0, 0.0),
     "right_wrist_px": (0.0, 0.0, 0.0),
@@ -234,7 +234,7 @@ def calculate_level(my_depth_image):
         #left_wrist_px = (int(body_points["left_wrist"][0] * w), int(body_points["left_wrist"][1] * h))
 
         # Ottieni profondità dai frame di profondità
-        right_shoulder_depth = my_depth_image[body_points["right_shoulder_px"][1], body_points["right_shoulder_px"][0]] * depth_scale
+        right_shoulder_depth = my_depth_image[body_points["right_shoulder_px"][1], body_points["right_shoulder_px"][0].x] * depth_scale
         left_shoulder_depth = my_depth_image[body_points["left_shoulder_px"][1], body_points["left_shoulder_px"][0]] * depth_scale
         right_wrist_depth = my_depth_image[body_points["right_wrist_px"][1], body_points["right_wrist_px"][0]] * depth_scale
         left_wrist_depth = my_depth_image[body_points["right_left_px"][1], body_points["right_left_px"][0]] * depth_scale
@@ -353,7 +353,7 @@ try:
             # Verifica che siano passati abbastanza secondi prima di calcolare il livello --- TRACKING 3 -- CO2
             if time.time() - initial_time > STABILITY_WAIT_TIME:
                 # Calcola il livello
-                calculate_level(pose_results.pose_landmarks.landmark)
+                calculate_level(depth_image)
 
 
         # Mostra livello e stato --- TRACKING 3 -- CO2
