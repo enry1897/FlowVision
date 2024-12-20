@@ -4,7 +4,7 @@ import netP5.*;
 int offsetForRectX = 150;
 int offsetForRectY = 50;
 int offsetForEllipse = 250;
-int lightRadius = 400;
+int lightRadius = 300;
 int centerX;
 int centerY;
 Blinders leftBlinders, rightBlinders;
@@ -30,8 +30,8 @@ void setup() {
     lights = new Light[numberOfLights];
     centerX = width/2;
     centerY = height/2;
-    oscP5 = new OscP5(this, 12000);
-    myRemoteLocation = new NetAddress("127.0.0.1", 12000);
+    oscP5 = new OscP5(this, 7700);
+    myRemoteLocation = new NetAddress("127.0.0.1", 7700);
 }
 
 void draw() {
@@ -62,7 +62,7 @@ void draw() {
             }
         } else {
             fill(255);
-            if(lightRadius < 400){
+            if(lightRadius < 300){
                 lightRadius++;
             }
         }

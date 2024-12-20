@@ -14,7 +14,7 @@ public class FireMachine {
     public void drawFireMachine() {
         ellipseMode(CENTER);
         noStroke();
-        fill(255, 0, 0);
+        fill(160, 160, 160);
         ellipse(x, y, radius, radius);
     }
 }

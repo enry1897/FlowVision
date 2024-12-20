@@ -17,7 +17,7 @@ config.enable_stream(rs.stream.depth, 640, 480, rs.format.z16, 30)
 
 # Configure OSC Client Address and Port
 ip = "127.0.0.1" #localhost
-port1 = 12000  #port for processing
+port1 = 7700  #port for processing
 
 
 # Create OSC Client
@@ -225,15 +225,15 @@ def calculate_level(pose_landmarks, w, h, depth_image):
     
 def send_number_bilnders():
     client.send_message("/blinders", number_to_send_blinders)
-    print(f"Sending a number: {number_to_send_blinders}")
+    print(f"Sending a number blinders: {number_to_send_blinders}")
 
 def send_number_lights():
     client.send_message("/lights", number_to_send_light)
-    print(f"Sending a number: {number_to_send_light}")
+    print(f"Sending a number light: {number_to_send_light}")
 
 def send_number_fire_machine():
     client.send_message("/fireMachine", number_to_send_fire_machine)
-    print(f"Sending a number: {number_to_send_fire_machine}")
+    print(f"Sending a number fire machine: {number_to_send_fire_machine}")
 
 
 
@@ -290,7 +290,7 @@ try:
                 cv2.putText(color_image, "Right arm raised!", (50, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
                 right_arm_high = 1
                 
-            number_to_send_blinders = right_arm_high
+            number_to_send_blinders = int(right_arm_high)
             send_number_bilnders()
             print(f"right_arm_high: {right_arm_high}")
 

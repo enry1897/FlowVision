@@ -27,8 +27,8 @@ void setup() {
     fireMachine3 = new FireMachine(width/2 + offsetForEllipse, height - offsetForRectY);
     fireMachine4 = new FireMachine(width*3/4 + offsetForEllipse, height - offsetForRectY);
     light = new Light(width/2, 0 + offsetForRectY, 50);
-    oscP5 = new OscP5(this, 12000);
-    myRemoteLocation = new NetAddress("127.0.0.1", 12000);
+    oscP5 = new OscP5(this, 7700);
+    myRemoteLocation = new NetAddress("127.0.0.1", 7700);
 }
 
 void draw() {
