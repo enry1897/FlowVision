@@ -3,6 +3,7 @@ import mediapipe as mp
 import pyrealsense2 as rs
 import numpy as np
 import time
+from pythonosc.udp_client import SimpleUDPClient
 
 # Inizializza MediaPipe
 mp_pose = mp.solutions.pose
@@ -13,6 +14,14 @@ pipeline = rs.pipeline()
 config = rs.config()
 config.enable_stream(rs.stream.color, 640, 480, rs.format.bgr8, 30)
 config.enable_stream(rs.stream.depth, 640, 480, rs.format.z16, 30)
+
+# Configure OSC Client Address and Port
+ip = "127.0.0.1" #localhost
+port1 = 12000  #port for processing
+
+
+# Create OSC Client
+client = SimpleUDPClient(ip, port1)
 
 
 # Avvia la pipeline
@@ -98,21 +107,18 @@ def is_right_arm_raised(landmarks, w, h):
         left_shoulder_px = [left_shoulder.x * w, left_shoulder.y * h, right_shoulder.z]
         right_wrist_px = [right_wrist.x * w, right_wrist.y * h, right_wrist.z]
         left_wrist_px = [left_wrist.x * w, left_wrist.y * h, left_wrist.z]
-        # shoulder_y = right_shoulder_px[1]
-        # wrist_y = right_wrist.y * h
 
-        # Controlla se il polso è significativamente sopra la spalla e non è alzato il braccio sx
-        if (calculate_conversion_distances(right_wrist_px, right_shoulder_px, right_shoulder_px,
-                                           left_shoulder_px) > ARM_LENGTH) and (
-                right_wrist_px[1] + 50 < right_shoulder_px[1]):  # Range di tolleranza (150 pixel)
-            if (left_wrist_px[1] > left_shoulder_px[1]):
-                return True
-            else:
-                return False
+        # Controlla se il polso destro è sopra la spalla destra e il sinistro non è alzato
+        if (
+            right_wrist_px[1] < right_shoulder_px[1]  # Mano destra sopra la spalla
+            and left_wrist_px[1] > left_shoulder_px[1]  # Mano sinistra sotto la spalla
+        ):
+            return True
 
     except IndexError:
         pass
     return False
+
 
 
 # Funzione per rilevare se le mani sono sovrapposte sul cuore --- TRACKING 2 - CUORE
@@ -175,25 +181,14 @@ def calculate_level(pose_landmarks, w, h, depth_image):
         right_wrist_px = (int(right_wrist.x * w), int(right_wrist.y * h))
         left_wrist_px = (int(left_wrist.x * w), int(left_wrist.y * h))
 
-        # Ottieni profondità dai frame di profondità
-        right_shoulder_depth = depth_image[right_shoulder_px[1], right_shoulder_px[0]] * depth_scale
-        left_shoulder_depth = depth_image[left_shoulder_px[1], left_shoulder_px[0]] * depth_scale
-        right_wrist_depth = depth_image[right_wrist_px[1], right_wrist_px[0]] * depth_scale
-        left_wrist_depth = depth_image[left_wrist_px[1], left_wrist_px[0]] * depth_scale
-
-        # Coordinate 3D
-        right_shoulder_3d = (right_shoulder.x, right_shoulder.y, right_shoulder_depth)
-        left_shoulder_3d = (left_shoulder.x, left_shoulder.y, left_shoulder_depth)
-        right_wrist_3d = (right_wrist.x, right_wrist.y, right_wrist_depth)
-        left_wrist_3d = (left_wrist.x, left_wrist.y, left_wrist_depth)
-
-        # Calcola la distanza 3D tra spalla e polso
-        right_arm_length = calculate_distance_3d(right_shoulder_3d, right_wrist_3d)
-        left_arm_length = calculate_distance_3d(left_shoulder_3d, left_wrist_3d)
+        # Calcola la distanza 2D tra spalla e polso
+        right_arm_length = calculate_conversion_distances(right_wrist_px, right_shoulder_px, right_shoulder_px, left_shoulder_px)
+        left_arm_length = calculate_conversion_distances(left_wrist_px, left_shoulder_px, right_shoulder_px, left_shoulder_px)
 
         # Verifica che entrambe le braccia siano distese
-        if right_arm_length < ARM_MIN_LENGTH or left_arm_length < ARM_MIN_LENGTH:
+        if right_arm_length < ARM_LENGTH or left_arm_length < ARM_LENGTH:
             level = 0
+            print("Braccia non distese")
             return
 
         # Altezza media delle mani
@@ -206,34 +201,40 @@ def calculate_level(pose_landmarks, w, h, depth_image):
         # Calcolo della differenza di altezza tra i polsi
         wrist_height_diff = abs(right_wrist.y - left_wrist.y)
 
-        # Se non rileva entrambe le mani, il livello non può essere incrementato
-        if not (right_arm_length >= ARM_MIN_LENGTH and left_arm_length >= ARM_MIN_LENGTH):
-            level = 0
-            prev_level = level
-            return
-
-        # Condizioni per aumentare il livello: entrambe le braccia devono essere sollevate sopra le anche,
-        # distese, e le mani devono essere a livello simile
-        if right_wrist.y < avg_hip_height and left_wrist.y < avg_hip_height:  # Le mani sono sopra le anche
-            if wrist_height_diff < HAND_HEIGHT_TOLERANCE:  # Le mani sono a livelli simili
-                # Calcola il livello in base all'altezza delle mani rispetto alle anche
-                normalized_height = (avg_hip_height - avg_hand_height) / (avg_hip_height - avg_shoulder_height * 0.5)
-                new_level = int(normalized_height * max_level)  # Mappa a un livello tra 0 e max_level
-            else:
-                # Se le mani sono a livelli diversi ma non troppo, facciamo comunque incrementare il livello
-                normalized_height = (avg_hip_height - avg_hand_height) / (avg_hip_height - avg_shoulder_height * 0.5)
-                new_level = int(normalized_height * (max_level * 0.75))  # Meno del massimo
+        # Condizioni per aumentare il livello
+        if (
+            right_wrist.y < avg_hip_height and left_wrist.y < avg_hip_height
+            and wrist_height_diff < HAND_HEIGHT_TOLERANCE
+        ):  # Entrambe le mani sopra le anche
+            normalized_height = (avg_hip_height - avg_hand_height) / (avg_hip_height - avg_shoulder_height * 0.5)
+            new_level = min(int(normalized_height * max_level), max_level)  # Mappa a livello tra 0 e max_level
         else:
-            new_level = 0  # Se le mani sono sotto le anche, livello 0
+            # Se le mani non soddisfano i criteri, resetta il livello
+            new_level = 0
 
-        # Applicare l'isteresi: il livello cambierà solo se la differenza con il livello precedente è significativa
+        # Isteresi per il cambio di livello
         if abs(new_level - prev_level) >= LEVEL_CHANGE_THRESHOLD:
-            level = min(new_level, max_level)  # Tronca il livello a max_level (10)
+            level = new_level
             prev_level = level
-
 
     except IndexError:
         pass
+
+
+# OSC Functions
+    
+def send_number_bilnders():
+    client.send_message("/blinders", number_to_send_blinders)
+    print(f"Sending a number: {number_to_send_blinders}")
+
+def send_number_lights():
+    client.send_message("/lights", number_to_send_light)
+    print(f"Sending a number: {number_to_send_light}")
+
+def send_number_fire_machine():
+    client.send_message("/fireMachine", number_to_send_fire_machine)
+    print(f"Sending a number: {number_to_send_fire_machine}")
+
 
 
 # MAIN LOOP
@@ -272,6 +273,9 @@ try:
 
                 cv2.putText(color_image, "Hands on Heart Detected!", (50, 50),
                             cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
+            
+            number_to_send_light = heart
+            send_number_lights()
             print(f"heart: {heart}")
 
             # Controlla se il braccio destro è alzato e braccio sx abbassato
@@ -279,17 +283,26 @@ try:
 
             right_arm_high = 0
 
-            if is_right_arm_raised(landmarks, w, h):
-                cv2.putText(color_image, "Right arm raised!", (50, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
+            # Verifica se il braccio destro è alzato
+            right_arm_high = is_right_arm_raised(pose_results.pose_landmarks.landmark, w, h)
+            if right_arm_high:
                 print("Funzione attivata: braccio destro alzato!")
+                cv2.putText(color_image, "Right arm raised!", (50, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
                 right_arm_high = 1
-
+                
+            number_to_send_blinders = right_arm_high
+            send_number_bilnders()
             print(f"right_arm_high: {right_arm_high}")
 
-            # Verifica che siano passati abbastanza secondi prima di calcolare il livello --- TRACKING 3 -- CO2
-            if time.time() - initial_time > STABILITY_WAIT_TIME:
-                # Calcola il livello
+
+            # Calcola il livello solo se il braccio destro non è alzato --- TRACKING 3 -- CO2
+            if not right_arm_high and time.time() - initial_time > STABILITY_WAIT_TIME:
                 calculate_level(pose_results.pose_landmarks.landmark, w, h, depth_image)
+            
+            number_to_send_fire_machine = level
+            send_number_fire_machine()
+
+           
 
         # Mostra livello e stato --- TRACKING 3 -- CO2
 
