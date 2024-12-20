@@ -64,21 +64,21 @@ LEVEL_CHANGE_THRESHOLD = 1  # La quantità minima di cambiamento per modificare 
 #global vars
 # Inizializzazione delle variabili globali in un dizionario
 body_points = {
-    "right_shoulder": (0.0, 0.0, 0.0),
-    "left_shoulder": (0.0, 0.0, 0.0),
-    "right_hip": (0.0, 0.0, 0.0),
-    "left_hip": (0.0, 0.0, 0.0),
-    "right_wrist": (0.0, 0.0, 0.0),
-    "left_wrist": (0.0, 0.0, 0.0),
-    "right_shoulder_depth": (0.0, 0.0,0.0),
-    "left_shoulder_depth": (0.0, 0.0,0.0),
-    "right_wrist_depth": (0.0, 0.0,0.0),
-    "left_wrist_depth": (0.0, 0.0,0.0),
-    "right_shoulder_px": (0.0, 0.0, 0.0),
-    "left_shoulder_px": (0.0, 0.0, 0.0),
-    "right_wrist_px": (0.0, 0.0, 0.0),
-    "left_wrist_px": (0.0, 0.0, 0.0),
-    "left_hip_px": (0.0, 0.0, 0.0),
+    "right_shoulder",
+    "left_shoulder",
+    "right_hip",
+    "left_hip",
+    "right_wrist",
+    "left_wrist",
+    "right_shoulder_depth",
+    "left_shoulder_depth",
+    "right_wrist_depth",
+    "left_wrist_depth",
+    "right_shoulder_px",
+    "left_shoulder_px",
+    "right_wrist_px",
+    "left_wrist_px",
+    "left_hip_px"
 }
 
 def update_body_point(body_point, new_value):
