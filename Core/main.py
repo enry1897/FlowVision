@@ -158,7 +158,7 @@ def is_right_arm_raised():
         #wrist_y = body_points["right_wrist"][1] * h
 
         # Controlla se il polso è significativamente sopra la spalla e non è alzato il braccio sx
-        if (calculate_conversion_distances("right_wrist_px", "right_shoulder_px") > ARM_LENGTH) and (body_points["right_wrist_px"][1] + 50 < body_points["right_shoulder_px"][1]):  # Range di tolleranza (150 pixel)
+        if (calculate_conversion_distances(body_points["right_wrist_px"], body_points["right_shoulder_px"]) > ARM_LENGTH) and (body_points["right_wrist_px"][1] + 50 < body_points["right_shoulder_px"][1]):  # Range di tolleranza (150 pixel)
             return body_points["left_wrist_px"][1] > ["left_shoulder_px"][1]
             
     except IndexError:
