@@ -22,41 +22,35 @@ public class Particle {
     public void move(int intensity) {
         this.x += this.vx;
         this.y += this.vy;
-        if (intensity == 12) {
-            this.alpha--;
-        } 
-        if (intensity == 11) {
-            this.alpha -= 2;
-        }
         if (intensity == 10) {
-            this.alpha -= 3;
+            this.alpha--;
         }
         if (intensity == 9) {
-            this.alpha -= 4;
+            this.alpha -= 2;
         }
         if (intensity == 8) {
-            this.alpha -= 5;
+            this.alpha -= 3;
         }
         if (intensity == 7) {
-            this.alpha -= 6;
+            this.alpha -= 4;
         }
         if (intensity == 6) {
-            this.alpha -= 7;
+            this.alpha -= 5;
         }
         if (intensity == 5) {
-            this.alpha -= 8;
+            this.alpha -= 6;
         }
         if (intensity == 4) {
-            this.alpha -= 9;
+            this.alpha -= 7;
         }
         if (intensity == 3) {
-            this.alpha -= 10;
+            this.alpha -= 8;
         }
         if (intensity == 2) {
-            this.alpha -= 11;
+            this.alpha -= 9;
         }
         if (intensity == 1) {
-            this.alpha -= 12;
+            this.alpha -= 10;
         }
     }
 }
