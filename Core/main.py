@@ -99,12 +99,12 @@ def display_all_joints():
 ##FUNCTIONS
 
 def getUpdatedLandmarks(myPoseLandmarks):
-    update_body_point(body_points["right_shoulder"], myPoseLandmarks.RIGHT_SHOULDER)
-    update_body_point(body_points["left_shoulder"], myPoseLandmarks.LEFT_SHOULDER)
-    update_body_point(body_points["right_hip"], myPoseLandmarks.RIGHT_HIP)
-    update_body_point(body_points["left_hip"], myPoseLandmarks.LEFT_HIP)
-    update_body_point(body_points["right_wrist"], myPoseLandmarks.RIGHT_WRIST)
-    update_body_point(body_points["left_wrist"], myPoseLandmarks.LEFT_WRIST)
+    update_body_point(body_points["right_shoulder"], mp_pose.PoseLandmark.RIGHT_SHOULDER)
+    update_body_point(body_points["left_shoulder"], mp_pose.PoseLandmark.LEFT_SHOULDER)
+    update_body_point(body_points["right_hip"], mp_pose.PoseLandmark.RIGHT_HIP)
+    update_body_point(body_points["left_hip"], mp_pose.PoseLandmark.LEFT_HIP)
+    update_body_point(body_points["right_wrist"], mp_pose.PoseLandmark.RIGHT_WRIST)
+    update_body_point(body_points["left_wrist"], mp_pose.PoseLandmark.LEFT_WRIST)
 
 def getPixelBodyPoints():
     update_body_point(body_points["right_shoulder_px"],[body_points["right_shoulder"][0] * w, body_points["right_shoulder"][1] * h, body_points["right_shoulder"][2]])
@@ -137,7 +137,7 @@ def calculate_conversion_distances(p1, p2):
 
 
 # Funzione principale per controllare se il braccio destro è alzato e non è alzato il braccio sx --- TRACKING 1
-def is_right_arm_raised(my_landmarks):
+def is_right_arm_raised():
     try:
         global body_points
 
@@ -213,7 +213,7 @@ def check_hands_on_heart(pose_landmarks):
 
 
 # Funzione per calcolare il livello proporzionale --- TRACKING 3 -- CO2
-def calculate_level(my_pose_landmarks, my_depth_image):
+def calculate_level(my_depth_image):
     global body_points,prev_level
     try:
         #getUpdatedLandmarks(my_pose_landmarks) #verificare se da chiamare una volta sola nel main loop
@@ -324,7 +324,7 @@ try:
                 color_image, pose_results.pose_landmarks, mp_pose.POSE_CONNECTIONS)
 
             #update all local datas
-            getUpdatedLandmarks(pose_results.pose_landmarks)
+            getUpdatedLandmarks(pose_results.pose_landmarks.landmark)
             getPixelBodyPoints()
 
             heart = 0
@@ -343,7 +343,7 @@ try:
 
             right_arm_high = 0
 
-            if is_right_arm_raised(landmarks, w, h):
+            if is_right_arm_raised():
                 cv2.putText(color_image, "Right arm raised!", (50, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
                 print("Funzione attivata: braccio destro alzato!")
                 right_arm_high = 1
@@ -353,7 +353,7 @@ try:
             # Verifica che siano passati abbastanza secondi prima di calcolare il livello --- TRACKING 3 -- CO2
             if time.time() - initial_time > STABILITY_WAIT_TIME:
                 # Calcola il livello
-                calculate_level(pose_results.pose_landmarks.landmark, w, h, depth_image)
+                calculate_level(pose_results.pose_landmarks.landmark)
 
 
         # Mostra livello e stato --- TRACKING 3 -- CO2
