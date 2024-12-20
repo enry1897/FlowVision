@@ -99,12 +99,12 @@ def display_all_joints():
 ##FUNCTIONS
 
 def getUpdatedLandmarks(myPoseLandmarks):
-    update_body_point(body_points["right_shoulder"], myPoseLandmarks.right_shoulder)
-    update_body_point(body_points["left_shoulder"], myPoseLandmarks.left_shoulder)
-    update_body_point(body_points["right_hip"], myPoseLandmarks.right_hip)
-    update_body_point(body_points["left_hip"], myPoseLandmarks.left_hip)
-    update_body_point(body_points["right_wrist"], myPoseLandmarks.right_wrist)
-    update_body_point(body_points["left_wrist"], myPoseLandmarks.left_wrist)
+    update_body_point(body_points["right_shoulder"], myPoseLandmarks.RIGHT_SHOULDER)
+    update_body_point(body_points["left_shoulder"], myPoseLandmarks.LEFT_SHOULDER)
+    update_body_point(body_points["right_hip"], myPoseLandmarks.RIGHT_HIP)
+    update_body_point(body_points["left_hip"], myPoseLandmarks.LEFT_HIP)
+    update_body_point(body_points["right_wrist"], myPoseLandmarks.RIGHT_WRIST)
+    update_body_point(body_points["left_wrist"], myPoseLandmarks.LEFT_WRIST)
 
 def getPixelBodyPoints():
     update_body_point(body_points["right_shoulder_px"],[body_points["right_shoulder"][0] * w, body_points["right_shoulder"][1] * h, body_points["right_shoulder"][2]])
