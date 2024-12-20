@@ -96,29 +96,26 @@ def display_all_joints():
 #display_all_joints()
 
 
-
-
 ##FUNCTIONS
 
 def getUpdatedLandmarks(myPoseLandmarks):
-    update_body_point("right_shoulder", myPoseLandmarks.right_shoulder)
-    update_body_point("left_shoulder", myPoseLandmarks.left_shoulder)
-    update_body_point("right_hip", myPoseLandmarks.right_hip)
-    update_body_point("left_hip", myPoseLandmarks.left_hip)
-    update_body_point("right_wrist", myPoseLandmarks.right_wrist)
-    update_body_point("left_wrist", myPoseLandmarks.left_wrist)
+    update_body_point(body_points["right_shoulder"], myPoseLandmarks.right_shoulder)
+    update_body_point(body_points["left_shoulder"], myPoseLandmarks.left_shoulder)
+    update_body_point(body_points["right_hip"], myPoseLandmarks.right_hip)
+    update_body_point(body_points["left_hip"], myPoseLandmarks.left_hip)
+    update_body_point(body_points["right_wrist"], myPoseLandmarks.right_wrist)
+    update_body_point(body_points["left_wrist"], myPoseLandmarks.left_wrist)
 
 def getPixelBodyPoints():
-    update_body_point("right_shoulder_px",[body_points["right_shoulder"][0] * w, body_points["right_shoulder"][1] * h, body_points["right_shoulder"][2]])
-    update_body_point("left_shoulder_px",[body_points["left_shoulder"][0] * w, body_points["left_hip"][1] * h, body_points["right_shoulder"][2]])
-    update_body_point("right_wrist_px",[body_points["right_wrist"][0] * w, body_points["right_wrist"][1] * h, body_points["right_wrist"][2]])
-    update_body_point("left_wrist_px",[body_points["left_wrist"][0] * w, body_points["left_wrist"][1] * h, body_points["left_wrist"][2]])
-    update_body_point("left_hip_px",(int(body_points["left_hip"][0] * w), int(body_points["left_hip"][1] * h)))
+    update_body_point(body_points["right_shoulder_px"],[body_points["right_shoulder"][0] * w, body_points["right_shoulder"][1] * h, body_points["right_shoulder"][2]])
+    update_body_point(body_points["left_shoulder_px"],[body_points["left_shoulder"][0] * w, body_points["left_hip"][1] * h, body_points["right_shoulder"][2]])
+    update_body_point(body_points["right_wrist_px"],[body_points["right_wrist"][0] * w, body_points["right_wrist"][1] * h, body_points["right_wrist"][2]])
+    update_body_point(body_points["left_wrist_px"],[body_points["left_wrist"][0] * w, body_points["left_wrist"][1] * h, body_points["left_wrist"][2]])
+    update_body_point(body_points["left_hip_px"],(int(body_points["left_hip"][0] * w), int(body_points["left_hip"][1] * h)))
 
 # Funzione per calcolare la distanza tra due punti (in pixel)
 def calculate_distance(p1, p2):
     return np.sqrt((p1[0] - p2[0]) ** 2 + (p1[1] - p2[1]) ** 2)
-
 
 # Funzione per calcolare la distanza in 3D
 def calculate_distance_3d(p1, p2):
