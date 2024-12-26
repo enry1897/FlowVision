@@ -4,7 +4,7 @@ import netP5.*;
 int offsetForRectX = 150;
 int offsetForRectY = 50;
 int offsetForEllipse = 250;
-int lightRadius = 400;
+int lightRadius = 300;
 int centerX;
 int centerY;
 Blinders leftBlinders, rightBlinders;
@@ -19,6 +19,7 @@ int numberOfLights = 16;
 
 void setup() {
     fullScreen();
+    // size(800, 600);
     background(0);
     leftBlinders = new Blinders(0 + offsetForRectX, height - offsetForRectY, 200, 50);
     rightBlinders = new Blinders(width - offsetForRectX, height - offsetForRectY, 200, 50);
@@ -29,8 +30,8 @@ void setup() {
     lights = new Light[numberOfLights];
     centerX = width/2;
     centerY = height/2;
-    oscP5 = new OscP5(this, 12000);
-    myRemoteLocation = new NetAddress("127.0.0.1", 12000);
+    oscP5 = new OscP5(this, 7700);
+    myRemoteLocation = new NetAddress("127.0.0.1", 7700);
 }
 
 void draw() {
@@ -51,9 +52,23 @@ void draw() {
         int y = round(centerY + sin(angle) * lightRadius);
 
         lights[i] = new Light(x, y, 50);
-        lights[i].drawLight();
+        lights[i].drawLight(lightValue);
     }
+
+    if (lightValue == 1) {
+            fill(255, 0, 0);
+            if(lightRadius > 100){
+                lightRadius--;
+            }
+        } else {
+            fill(255);
+            if(lightRadius < 300){
+                lightRadius++;
+            }
+        }
     
+    // System.out.println(lightRadius);
+
     leftBlinders.changeColor(armPosition, 1);
     rightBlinders.changeColor(armPosition, 1);
 }
@@ -67,3 +82,4 @@ void oscEvent(OscMessage theOscMessage) {
         lightValue = theOscMessage.get(0).intValue();
     }
 }
+   
