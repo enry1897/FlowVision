@@ -1,5 +1,6 @@
 from pythonosc.udp_client import SimpleUDPClient
 import time
+import random
 
 # Configure the adress of the client (Processing)
 ip = "192.168.255.102" # Localhost
@@ -25,10 +26,11 @@ def send_number_fire_machine():
 #send_number_bilnders()
 
 number_to_send_light = 0
+number_to_send_fire_machine = 0
 while True:
     send_number_lights()
+    send_number_fire_machine()
     time.sleep(3)
     number_to_send_light = 1 - number_to_send_light
 
-#number_to_send_fire_machine = 2
-#send_number_fire_machine()
+    number_to_send_fire_machine = random.randint(0, 3)
