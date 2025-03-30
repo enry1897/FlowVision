@@ -7,14 +7,14 @@ from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import LSTM, Dense, Dropout
 from pythonosc.udp_client import SimpleUDPClient
 
-# Initialize MediaPipe
+# Initialize MediaPipe, per farla funzionare serve protobuf==3.20.3 e 
 mp_pose = mp.solutions.pose
 pose = mp_pose.Pose(
     static_image_mode=False,
-    min_detection_confidence=0.5,
-    model_complexity=1,  # You can change this based on your requirements (1 or 2)
+    model_complexity=2,
     enable_segmentation=False,
-    smooth_landmarks=True,
+    min_detection_confidence=0.5,
+    min_tracking_confidence=0.5
 )
 
 # Initialize computer camera
@@ -23,7 +23,6 @@ cap = cv2.VideoCapture(0)   # 0 è per la webcam integrata, 1 per una webcam est
 if not cap.isOpened():
     print("Error: Could not open camera.")
     exit()
-
 
 
 # Configure OSC Client Address and Port
