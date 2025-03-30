@@ -2,8 +2,8 @@ from pythonosc.udp_client import SimpleUDPClient
 import time
 
 # Configure the adress of the client (Processing)
-ip = "127.0.0.1" # Localhost
-port = 12000 # Port where we send the messages
+ip = "0.0.0.0" # Localhost
+port = 8000 # Port where we send the messages
 
 # Create the client OSC
 client = SimpleUDPClient(ip, port)
@@ -21,11 +21,14 @@ def send_number_fire_machine():
     print(f"Sending a number: {number_to_send_fire_machine}")
 
 # Send an integer
-number_to_send_blinders = 1
-send_number_bilnders()
+#number_to_send_blinders = 1
+#send_number_bilnders()
 
-number_to_send_light = 1
-send_number_lights()
+number_to_send_light = 0
+while True:
+    send_number_lights()
+    time.sleep(3)
+    number_to_send_light = 1 - number_to_send_light
 
-number_to_send_fire_machine = 12
-send_number_fire_machine()
+#number_to_send_fire_machine = 2
+#send_number_fire_machine()
