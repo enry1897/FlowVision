@@ -38,10 +38,10 @@ def osc_handler(address, *args):
     """Gestisce i messaggi OSC e accende le GPIO corrispondenti."""
     print(f"Received OSC message: {address} {args}")
 
-    if address.startswith("/on") or address.startswith("/off"):
+    if address == "/lights":
         try:
             command, target = address[1:].split(" ", 1)  # Rimuove lo slash iniziale
-            state = GPIO.HIGH if command.lower() == "on" else GPIO.LOW
+            state = GPIO.HIGH if command == 1 else GPIO.LOW
 
             if target.upper() in GPIO_MAP:
                 pins = GPIO_MAP[target.upper()]
@@ -55,7 +55,25 @@ def osc_handler(address, *args):
                 print("Invalid target")
         except (ValueError, IndexError) as e:
             print(f"Error parsing OSC message: {e}")
-    elif address == "/mani":
+    elif address == "/blinders":
+        try:
+            command, target = address[1:].split(" ", 1)  # Rimuove lo slash iniziale
+            state = GPIO.HIGH if command == 1 else GPIO.LOW
+
+            if target.upper() in GPIO_MAP:
+                pins = GPIO_MAP[target.upper()]
+                if not isinstance(pins, list):
+                    pins = [pins]
+                for pin in pins:
+                    GPIO.output(pin, state)
+                    gpio_states[pin] = state == GPIO.HIGH
+                print(f"GPIO {pins} set to {'HIGH' if state else 'LOW'}")
+            else:
+                print("Invalid target")
+        except (ValueError, IndexError) as e:
+            print(f"Error parsing OSC message: {e}")
+
+    elif address == "/fireMachine":
         try:
             level = int(args[0])
             pins = GPIO_MAP["MANI"]
@@ -85,10 +103,10 @@ ip = "0.0.0.0"  # Ascolta su tutte le interfacce di rete
 port = 8000     # Porta OSC
 
 disp = dispatcher.Dispatcher()
-disp.map("/on *", osc_handler)
-disp.map("/off *", osc_handler)
-disp.map("/mani", osc_handler)
-server = osc_server.ThreadingOSCUDPServer((ip, port), disp)
+disp.map("/blinders *", osc_handler)
+disp.map("/lights *", osc_handler)
+disp.map("/fireMachine", osc_handler)
+server = osc_server.BlockingOSCUDPServer((ip, port), disp)
 
 print(f"Listening for OSC messages on {ip}:{port}")
 
