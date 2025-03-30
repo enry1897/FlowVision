@@ -2,7 +2,7 @@ from pythonosc.udp_client import SimpleUDPClient
 import time
 
 # Configure the adress of the client (Processing)
-ip = "0.0.0.0" # Localhost
+ip = "192.168.255.102" # Localhost
 port = 8000 # Port where we send the messages
 
 # Create the client OSC
