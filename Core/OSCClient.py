@@ -2,35 +2,40 @@ from pythonosc.udp_client import SimpleUDPClient
 import time
 import random
 
-# Configure the adress of the client (Processing)
-ip = "192.168.255.102" # Localhost
-port = 8000 # Port where we send the messages
+# Indirizzo del server OSC
+ip = "192.168.1.19"
+port = 8100
 
-# Create the client OSC
 client = SimpleUDPClient(ip, port)
 
-def send_number_bilnders():
-    client.send_message("/blinders", number_to_send_blinders)
-    print(f"Sending a number: {number_to_send_blinders}")
+def send_number_blinders():
+    """Send ON/OFF signal to /blinders"""
+    client.send_message("/blinders", 1)
+    print("Sending blinders ON")
+    time.sleep(1)
+    client.send_message("/blinders", 0)
+    print("Sending blinders OFF")
 
 def send_number_lights():
+    """Send ON/OFF signal to /lights"""
+    global number_to_send_light
     client.send_message("/lights", number_to_send_light)
-    print(f"Sending a number: {number_to_send_light}")
+    print(f"Sending lights: {number_to_send_light}")
 
 def send_number_fire_machine():
+    """Send random number to /fireMachine (0-3)"""
+    global number_to_send_fire_machine
     client.send_message("/fireMachine", number_to_send_fire_machine)
-    print(f"Sending a number: {number_to_send_fire_machine}")
-
-# Send an integer
-#number_to_send_blinders = 1
-#send_number_bilnders()
+    print(f"Sending fireMachine: {number_to_send_fire_machine}")
 
 number_to_send_light = 0
 number_to_send_fire_machine = 0
+
 while True:
     send_number_lights()
     send_number_fire_machine()
+    send_number_blinders()  # Added blinders control
     time.sleep(3)
-    number_to_send_light = 1 - number_to_send_light
 
+    number_to_send_light = 1 - number_to_send_light
     number_to_send_fire_machine = random.randint(0, 3)
