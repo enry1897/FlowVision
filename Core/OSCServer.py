@@ -42,30 +42,19 @@ blinder_led.pack(pady=10)
 
 def toggle_led(address, value):
     """Toggle the main LED and GPIO 17."""
-    if value == 1:
-        led_status.config(text="LED ON", bg="green")
-        GPIO.output(17, GPIO.HIGH)
-    else:
-        led_status.config(text="LED OFF", bg="red")
-        GPIO.output(17, GPIO.LOW)
+    GPIO.output(17, GPIO.HIGH if value == 1 else GPIO.LOW)
+    led_status.config(text="LED ON" if value == 1 else "LED OFF", bg="green" if value == 1 else "red")
 
 def fire_machine(address, value):
     """Control fire machine LEDs and GPIO 27."""
-    for i in range(3):
-        if i < value:
-            fire_leds[i].config(text="ON", bg="orange")
-        else:
-            fire_leds[i].config(text="OFF", bg="gray")
     GPIO.output(27, GPIO.HIGH if value > 0 else GPIO.LOW)
+    for i in range(3):
+        fire_leds[i].config(text="ON", bg="orange") if i < value else fire_leds[i].config(text="OFF", bg="gray")
 
 def toggle_blinders(address, value):
     """Control the blinder LED and GPIO 22."""
-    if value == 1:
-        blinder_led.config(text="BLINDER ON", bg="yellow")
-        GPIO.output(22, GPIO.HIGH)
-    else:
-        blinder_led.config(text="BLINDER OFF", bg="gray")
-        GPIO.output(22, GPIO.LOW)
+    GPIO.output(22, GPIO.HIGH if value == 1 else GPIO.LOW)
+    blinder_led.config(text="BLINDER ON" if value == 1 else "BLINDER OFF", bg="yellow" if value == 1 else "gray")
 
 dispatcher = Dispatcher()
 dispatcher.map("/lights", toggle_led)
