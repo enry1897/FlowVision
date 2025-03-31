@@ -35,7 +35,7 @@ while True:
     send_number_lights()
     send_number_fire_machine()
     send_number_blinders()  # Added blinders control
-    time.sleep(3)
+    time.sleep(3 + random.randint(0, 3))  # Random delay between 3 and 7 seconds
 
     number_to_send_light = 1 - number_to_send_light
     number_to_send_fire_machine = random.randint(0, 3)
