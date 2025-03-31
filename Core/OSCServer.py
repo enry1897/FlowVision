@@ -3,12 +3,26 @@ import threading
 from pythonosc.dispatcher import Dispatcher
 from pythonosc.osc_server import ThreadingOSCUDPServer
 
+
+def check_gpio_setup():
+    try:
+        for pin in [17, 27, 22]:
+            mode = GPIO.gpio_function(pin)  # Restituisce la modalità del pin
+            mode_str = "OUTPUT" if mode == GPIO.OUT else "INPUT" if mode == GPIO.IN else "UNKNOWN"
+            print(f"GPIO {pin} is set as {mode_str}")
+    except Exception as e:
+        print(f"Error checking GPIO setup: {e}")
+
+
 try:
     import RPi.GPIO as GPIO
     GPIO.setmode(GPIO.BCM)
     GPIO.setup(17, GPIO.OUT, initial=GPIO.LOW)
     GPIO.setup(27, GPIO.OUT, initial=GPIO.LOW)
     GPIO.setup(22, GPIO.OUT, initial=GPIO.LOW)
+    print("USING GPIO")
+    check_gpio_setup()
+
 except ImportError:
     class MockGPIO:
         BCM = OUT = HIGH = LOW = None
@@ -22,6 +36,7 @@ except ImportError:
 # Server Configuration
 SERVER_IP = "192.168.1.19"
 SERVER_PORT = 8100
+
 
 # GUI Configuration
 root = tk.Tk()
@@ -44,12 +59,30 @@ for _ in range(3):
 blinder_led = tk.Label(root, text="BLINDER OFF", bg="gray", font=("Arial", 12), width=12)
 blinder_led.pack(pady=10)
 
+
+def check_gpio_config():
+    try:
+        with open("/sys/class/gpio/gpio17/direction", "r") as f:
+            print(f"GPIO 17 is set as {f.read().strip()}")
+        with open("/sys/class/gpio/gpio27/direction", "r") as f:
+            print(f"GPIO 27 is set as {f.read().strip()}")
+        with open("/sys/class/gpio/gpio22/direction", "r") as f:
+            print(f"GPIO 22 is set as {f.read().strip()}")
+    except FileNotFoundError:
+        print("Could not read GPIO configuration. Are you running as root?")
+
+
+# Chiamala subito dopo la configurazione dei GPIO
+check_gpio_setup()
+
+
 def update_gpio_status():
     """Update the GPIO status in the GUI."""
     status_text = f"GPIO 17: {'HIGH' if GPIO.input(17) else 'LOW'}, " \
                   f"GPIO 27: {'HIGH' if GPIO.input(27) else 'LOW'}, " \
                   f"GPIO 22: {'HIGH' if GPIO.input(22) else 'LOW'}"
     gpio_status.config(text=status_text)
+    check_gpio_config()
 
 def toggle_led(address, value):
     """Toggle the main LED and GPIO 17."""
