@@ -14,13 +14,12 @@ try:
     use_mock = False
 
     chip = gpiod.Chip("gpiochip0")
-    lines = chip.get_lines([led_pin, fire_pin, blinders_pin])
-    lines.request(consumer="osc-server", type=Direction.OUTPUT, default_vals=[0, 0, 0])
-
-    # Verifica i valori delle linee
-    print(f"LED pin state: {lines[0].get_value()}")
-    print(f"Fire pin state: {lines[1].get_value()}")
-    print(f"Blinders pin state: {lines[2].get_value()}")
+    lines = {}
+    for pin in [led_pin, fire_pin, blinders_pin]:
+        line = chip.get_line(pin)
+        line.request(consumer="osc-server", type=Direction.OUTPUT, default_val=0)
+        lines[pin] = line
+        print(f"Line {pin} initial state: {line.get_value()}")
 
     print("USING gpiod")
 
@@ -46,9 +45,9 @@ if use_mock:
     GPIO = MockGPIO()
 else:
     class RealGPIO:
-        def __init__(self, lines, pins):
-            self.lines = dict(zip(pins, lines))
-            self.state = {pin: 0 for pin in pins}
+        def __init__(self, lines):
+            self.lines = lines
+            self.state = {pin: 0 for pin in lines}
 
         def output(self, pin, value):
             self.state[pin] = value
@@ -58,9 +57,11 @@ else:
             return self.state.get(pin, 0)
 
         def cleanup(self):
-            pass  # gpiod handles this automatically
+            for pin, line in self.lines.items():
+                line.set_value(0)
+                line.release()
 
-    GPIO = RealGPIO(lines=lines.get_lines(), pins=[led_pin, fire_pin, blinders_pin])
+    GPIO = RealGPIO(lines)
 
 # GUI Setup
 root = tk.Tk()
