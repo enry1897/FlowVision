@@ -3,21 +3,32 @@ import threading
 from pythonosc.dispatcher import Dispatcher
 from pythonosc.osc_server import ThreadingOSCUDPServer
 
+# Pin di controllo
 led_pin = 17
 fire_pin = 27
 blinders_pin = 22
 
-
+# Inizializzazione GPIO con libgpiod
 try:
     import gpiod
-    from gpiod.line import Direction
+    from gpiod import LineDirection, LineRequest
+
+    print(f"gpiod version: {gpiod.__version__}")
+    print("Has LineSettings:", hasattr(gpiod, "LineSettings"))
+    print("Has LineDirection:", hasattr(gpiod, "LineDirection"))
+    print("Has Chip:", hasattr(gpiod, "Chip"))
+    print(gpiod.__file__)
+
     use_mock = False
 
+    # Crea un oggetto Chip per il GPIO
     chip = gpiod.Chip("gpiochip0")
     lines = {}
+
+    # Configura le linee per i pin che ci servono
     for pin in [led_pin, fire_pin, blinders_pin]:
         line = chip.get_line(pin)
-        line.request(consumer="osc-server", type=Direction.OUTPUT, default_val=0)
+        line.request(consumer="osc-server", type=LineDirection.OUTPUT, default_val=0)
         lines[pin] = line
         print(f"Line {pin} initial state: {line.get_value()}")
 
@@ -27,6 +38,7 @@ except Exception as e:
     print(f"Falling back to MockGPIO due to error: {e}")
     use_mock = True
 
+# Mock per GPIO se gpiod non � disponibile
 if use_mock:
     class MockGPIO:
         def __init__(self):
@@ -63,7 +75,7 @@ else:
 
     GPIO = RealGPIO(lines)
 
-# GUI Setup
+# Configurazione della GUI
 root = tk.Tk()
 root.title("OSC Server GUI")
 root.geometry("350x300")
@@ -83,12 +95,14 @@ for _ in range(3):
 blinder_led = tk.Label(root, text="BLINDER OFF", bg="gray", font=("Arial", 12), width=12)
 blinder_led.pack(pady=10)
 
+# Funzione per aggiornare lo stato GPIO sulla GUI
 def update_gpio_status():
     status_text = f"GPIO led_pin: {'HIGH' if GPIO.input(led_pin) else 'LOW'}, " \
                   f"GPIO fire_pin: {'HIGH' if GPIO.input(fire_pin) else 'LOW'}, " \
                   f"GPIO blinders_pin: {'HIGH' if GPIO.input(blinders_pin) else 'LOW'}"
     gpio_status.config(text=status_text)
 
+# Funzioni per cambiare lo stato delle GPIO in risposta agli OSC
 def toggle_led(address, value):
     print(f"Toggling LED: {'ON' if value == 1 else 'OFF'}")
     GPIO.output(led_pin, 1 if value == 1 else 0)
@@ -111,7 +125,7 @@ def toggle_blinders(address, value):
     update_gpio_status()
     print(f"Toggled Blinders: {'ON' if value == 1 else 'OFF'}")
 
-# OSC Setup
+# Configurazione del server OSC
 dispatcher = Dispatcher()
 dispatcher.map("/lights", toggle_led)
 dispatcher.map("/fireMachine", fire_machine)
@@ -121,6 +135,7 @@ SERVER_IP = "192.168.1.19"
 SERVER_PORT = 8100
 server = ThreadingOSCUDPServer((SERVER_IP, SERVER_PORT), dispatcher)
 
+# Funzione per avviare il server OSC in un thread separato
 def start_osc_server():
     print(f"Listening on {SERVER_IP}:{SERVER_PORT}...")
     server.serve_forever()
@@ -128,7 +143,7 @@ def start_osc_server():
 server_thread = threading.Thread(target=start_osc_server, daemon=True)
 server_thread.start()
 
-# GUI Loop
+# Ciclo principale della GUI
 try:
     tk.mainloop()
 finally:
