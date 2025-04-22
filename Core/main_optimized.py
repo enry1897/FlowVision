@@ -259,7 +259,7 @@ try:
 
         right_arm_high = 0
 
-        if is_right_arm_raised(landmarks, w, h):
+        if is_right_arm_raised(data["right_shoulder_px"], data["right_wrist_px"]) and not is_left_arm_raised(data["left_shoulder_px"], data["left_wrist_px"]):
             cv2.putText(color_image, "Right arm raised!", (50, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
             print("Funzione attivata: braccio destro alzato!")
             right_arm_high = 1
