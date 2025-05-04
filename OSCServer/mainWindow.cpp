@@ -14,7 +14,7 @@ MainWindow::MainWindow(QWidget *parent)
     if(!connect(this->ui.pb_disable_all, &QPushButton::clicked, this, &MainWindow::onPbDisableAllClicked)) Q_ASSERT(false);
 
 
-    this->oscServer->start("192.168.1.19", 8100);
+    this->oscServer->start("192.168.1.19",8100);
 
     this->checkTimer = new QTimer(this);
     this->checkTimer->setInterval(20);
