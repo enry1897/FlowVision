@@ -22,7 +22,7 @@ public:
     GpioHandler();
     ~GpioHandler();
 
-    void setOutput(int pin, bool value);
+    bool setOutput(int pin, bool value);
     bool readInput(int pin);
 
     void cleanup();

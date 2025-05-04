@@ -27,6 +27,10 @@ private:
     GpioHandler gpio;
     OscServer *oscServer;
 
+    bool ledStatus;
+    bool fireStatus;
+    bool blinderStatus;
+
     void checkRoutine();
 
     QTimer* checkTimer;

@@ -107,7 +107,7 @@
         </widget>
        </item>
        <item>
-        <widget class="QPushButton" name="pb_blinders_27">
+        <widget class="QPushButton" name="pb_fire_27">
          <property name="font">
           <font>
            <bold>true</bold>
@@ -122,7 +122,7 @@
         </widget>
        </item>
        <item>
-        <widget class="QPushButton" name="pb_fire_22">
+        <widget class="QPushButton" name="pb_blinders_22">
          <property name="font">
           <font>
            <bold>true</bold>
@@ -220,7 +220,7 @@
             </font>
            </property>
            <property name="text">
-            <string>GPIO 17 status:</string>
+            <string>GPIO 17 status LED:</string>
            </property>
           </widget>
          </item>
@@ -250,7 +250,7 @@
             </font>
            </property>
            <property name="text">
-            <string>GPIO 27 status:</string>
+            <string>GPIO 27 status Fire Machine:</string>
            </property>
           </widget>
          </item>
@@ -280,7 +280,7 @@
             </font>
            </property>
            <property name="text">
-            <string>GPIO 22 status:</string>
+            <string>GPIO 22 status Blinders:</string>
            </property>
           </widget>
          </item>

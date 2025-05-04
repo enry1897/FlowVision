@@ -59,16 +59,16 @@ struct gpiod_line *GpioHandler::ensureLine(int pin, bool output)
     return line;
 }
 
-void GpioHandler::setOutput(int pin, bool value)
+bool GpioHandler::setOutput(int pin, bool value)
 {
     if (!chip)
-        return;
+        return false;
 
     struct gpiod_line *line = gpiod_chip_get_line(chip, pin);
     if (!line)
     {
         qCritical() << "Failed to get GPIO line" << pin;
-        return;
+        return false;
     }
 
     // Richiede il controllo del pin come uscita
@@ -76,21 +76,24 @@ void GpioHandler::setOutput(int pin, bool value)
     {
         qCritical() << "Failed to request line as output:" << pin;
         gpiod_line_release(line);
-        return;
+        return false;
     }
 
     // Imposta il valore
     if (gpiod_line_set_value(line, value) < 0)
     {
         qCritical() << "Failed to set line value:" << pin;
+        return false;
     }
+
 
     // Rilascia la linea
     gpiod_line_release(line);
+    return value;
 }
 
 
-bool GpioHandler::readInput(int pin)
+/*bool GpioHandler::readInput(int pin)
 {
     if (!chip)
         return false;
@@ -121,7 +124,33 @@ bool GpioHandler::readInput(int pin)
 
     gpiod_line_release(line);
     return value == 1;
+}*/
+
+bool GpioHandler::readInput(int pin)
+{
+    if (!chip)
+        return false;
+
+    if (!lines.contains(pin))
+    {
+        qWarning() << "Line" << pin << "has not been configured yet, skipping read to avoid reconfiguration";
+        return false;
+    }
+
+    struct gpiod_line *line = lines[pin];
+
+    // Legge il valore attuale (vale anche per linee in output)
+    int value = gpiod_line_get_value(line);
+    if (value < 0)
+    {
+        qCritical() << "Failed to read line value:" << pin << "errno:" << strerror(errno);
+        return false;
+    }
+
+    return value == 1;
 }
+
+
 
 void GpioHandler::cleanup()
 {
