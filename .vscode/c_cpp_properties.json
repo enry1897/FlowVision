@@ -10,13 +10,14 @@
                 "/usr/include/aarch64-linux-gnu/qt6/QtWidgets",
                 "/usr/include/aarch64-linux-gnu/qt6/QtGui",
                 "/usr/include/liblo",
-                "/usr/include/gpiod"
+                "/usr/include/gpiod",
+                "${workspaceFolder}/Core/OSCServer/head"
             ],
             "defines": [],
             "compilerPath": "/usr/bin/g++",
             "cStandard": "c11",
             "cppStandard": "c++17",
-            "intelliSenseMode": "linux-gcc-arm64"  // o "linux-gcc-arm" se sei su Raspberry Pi 32 bit
+            "intelliSenseMode": "linux-gcc-arm64"
         }
     ],
     "version": 4
