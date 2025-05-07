@@ -30,3 +30,6 @@
 ### Microtasks da completare
 -	Implementare il codice di pre-processing. Questo deve eseguire object detection (riconoscere la mano all’interno dell’immagine), normalisation and aligment (in modo che la mano sia inserita all’interno di un quadrato 120x120px). Il risultato sarà dato in pasto al modello_performante che dirà se la mano è chiusa o aperta.
 -	Configurazione del guanto
+
+## Description of the project
+The main claim of our project is to create a system that allow people with visual impairments to control stage effects consciously. We use a camera to detect performers' gestures by using a machine learning algorithm to easily perform it. Then we send OSC messages to comunicate with RaspberryPi to controll a feedback glove that vibrate in different way according to the type of data that we have detected. Last step we comunicate with lights and other stage machine in order to obtain the desirable effect.
