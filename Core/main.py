@@ -4,16 +4,31 @@ import pyrealsense2 as rs
 import numpy as np
 import time
 from pythonosc.udp_client import SimpleUDPClient
+from tensorflow.keras.models import load_model
+from tensorflow.keras.preprocessing.image import img_to_array
+
+# Carica il modello AI per mano aperta
+model = load_model('/Users/filippo/Library/CloudStorage/OneDrive-PolitecnicodiMilano/Corsi/Creative Programming and Computing ⌨️/Clone GitHub/FlowVision/Core/ML/modello_Python_aggiornato.h5')
 
 # Inizializza MediaPipe
 mp_pose = mp.solutions.pose
-pose = mp_pose.Pose(static_image_mode=False, min_detection_confidence=0.5)
+mp_hands = mp.solutions.hands
+pose = mp_pose.Pose(static_image_mode=False, min_detection_confidence=0.5) #forse qua va alzata la confidenza
+hands = mp_hands.Hands(static_image_mode=False, max_num_hands=1, min_detection_confidence=0.7)
 
 # Inizializza RealSense Pipeline
 pipeline = rs.pipeline()
 config = rs.config()
-config.enable_stream(rs.stream.color, 640, 480, rs.format.bgr8, 30)
+config.enable_stream(rs.stream.color, 640, 480, rs.format.rgb8, 30)
 config.enable_stream(rs.stream.depth, 640, 480, rs.format.z16, 30)
+
+# Controllino alè alè
+ctx = rs.context()
+devices = ctx.query_devices()
+if len(devices) == 0:
+    print("No RealSense devices connected.")
+else:
+    print(f"{len(devices)} RealSense device(s) found.")
 
 # Configure OSC Client Address and Port
 ip = "127.0.0.1" #localhost
@@ -94,8 +109,60 @@ def calculate_conversion_distances(p1, p2, right_shoulder, left_shoulder):
 
 
 # Funzione principale per controllare se il braccio destro è alzato e non è alzato il braccio sx --- TRACKING 1
-def is_right_arm_raised(landmarks, w, h):
+def is_right_arm_raised(frame, hands, landmarks, w, h):
     try:
+        # Pre-processing per contrastare il controluce
+        lab = cv2.cvtColor(frame, cv2.COLOR_BGR2Lab)
+        l, a, b = cv2.split(lab)
+
+        # Applica CLAHE sul canale L
+        clahe = cv2.createCLAHE(clipLimit=3.0, tileGridSize=(8, 8))
+        cl = clahe.apply(l)
+
+        # Ricostruisci immagine con canale L equalizzato
+        limg = cv2.merge((cl, a, b))
+        enhanced_frame = cv2.cvtColor(limg, cv2.COLOR_Lab2BGR)
+
+        # Riduzione del rumore (opzionale, utile se molta luce)
+        enhanced_frame = cv2.GaussianBlur(enhanced_frame, (3, 3), 0)
+
+        # Conversione in RGB per MediaPipe
+        rgb_frame = cv2.cvtColor(enhanced_frame, cv2.COLOR_BGR2RGB)
+
+        results = hands.process(rgb_frame)
+
+        predicted_class = 0
+
+        if results.multi_hand_landmarks:
+            for hand_landmarks in results.multi_hand_landmarks:
+                # Ottieni bounding box dai landmark
+                h, w, _ = frame.shape
+                landmark_array = np.array([(lm.x * w, lm.y * h) for lm in hand_landmarks.landmark])
+                x_min = int(np.min(landmark_array[:, 0]) - 20)
+                y_min = int(np.min(landmark_array[:, 1]) - 20)
+                x_max = int(np.max(landmark_array[:, 0]) + 20)
+                y_max = int(np.max(landmark_array[:, 1]) + 20)
+
+                # Assicurati che i limiti siano validi
+                x_min, y_min = max(x_min, 0), max(y_min, 0)
+                x_max, y_max = min(x_max, w), min(y_max, h)
+
+                hand_img = frame[y_min:y_max, x_min:x_max]
+                hand_img = cv2.resize(hand_img, (120, 120))
+                hand_img = img_to_array(hand_img) / 255.0
+                hand_img = np.expand_dims(hand_img, axis=0)
+
+                # Predizione
+                prediction = model.predict(hand_img)
+                predicted_class = np.argmax(prediction)
+                confidence = np.max(prediction)
+
+                # Disegna bounding box e testo
+                cv2.rectangle(frame, (x_min, y_min), (x_max, y_max), (0, 255, 0), 2)
+                text = f"Classe: {predicted_class}, Conf: {confidence:.2f}"
+                cv2.putText(frame, text, (x_min, y_min - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (255, 255, 255), 2)
+
+
         # Ottieni coordinate di spalla e polso destro
         right_shoulder = landmarks[mp_pose.PoseLandmark.RIGHT_SHOULDER]
         left_shoulder = landmarks[mp_pose.PoseLandmark.LEFT_SHOULDER]
@@ -108,10 +175,11 @@ def is_right_arm_raised(landmarks, w, h):
         right_wrist_px = [right_wrist.x * w, right_wrist.y * h, right_wrist.z]
         left_wrist_px = [left_wrist.x * w, left_wrist.y * h, left_wrist.z]
 
-        # Controlla se il polso destro è sopra la spalla destra e il sinistro non è alzato
+        # Controlla se il polso destro è sopra la spalla destra e il sinistro non è alzato e la mano è chiusa
         if (
             right_wrist_px[1] < right_shoulder_px[1]  # Mano destra sopra la spalla
             and left_wrist_px[1] > left_shoulder_px[1]  # Mano sinistra sotto la spalla
+            and predicted_class == 1  # Predizione della mano chiusa
         ):
             return True
 
@@ -242,6 +310,9 @@ def send_number_fire_machine():
 
 try:
     initial_time = time.time()  # Tempo di inizio
+    contatore_arm = 0
+    sample_every = 5  # aggiorna ogni 10 iterazioni
+    right_arm_fixed = False
     while True:
         # Cattura i frame di colore e profondità
         frames = pipeline.wait_for_frames()
@@ -253,6 +324,7 @@ try:
 
         # Converti i frame in formati utilizzabili
         color_image = np.asanyarray(color_frame.get_data())
+        color_image = cv2.cvtColor(color_image, cv2.COLOR_RGB2BGR)
         depth_image = np.asanyarray(depth_frame.get_data())
         h, w, _ = color_image.shape
 
@@ -284,8 +356,17 @@ try:
             right_arm_high = 0
 
             # Verifica se il braccio destro è alzato
-            right_arm_high = is_right_arm_raised(pose_results.pose_landmarks.landmark, w, h)
-            if right_arm_high:
+                
+            right_arm_high = is_right_arm_raised(color_image, hands, pose_results.pose_landmarks.landmark, w, h)
+
+            # Abbassare la frequenza di aggiornamento con contatore perche il modello non è stabile, vigliacca della rospa
+            if right_arm_high != right_arm_fixed:
+                contatore_arm += 1
+                if contatore_arm >= sample_every:
+                    right_arm_fixed = right_arm_high
+                    contatore_arm = 0  # resetta il contatore
+            
+            if right_arm_fixed:
                 print("Funzione attivata: braccio destro alzato!")
                 cv2.putText(color_image, "Right arm raised!", (50, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
                 right_arm_high = 1
