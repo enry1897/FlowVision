@@ -1,9 +1,10 @@
 #include "oscServer.h"
 #include <QDebug>
-#include <lo/lo.h>  // Assicurati di includere la libreria liblo per l'OSC
 
 OscServer::OscServer(GpioHandler *gpioHandler, QObject *parent)
-    : QObject(parent), gpio(gpioHandler), serverThread(nullptr)
+    : QObject(parent),
+      gpio(gpioHandler),
+      serverThread(nullptr)
 {
 }
 
@@ -17,44 +18,32 @@ OscServer::~OscServer()
 
 void OscServer::start(const QString &ip, int port)
 {
-    qDebug() << "Starting OSC server...";
+    Q_UNUSED(ip); // Liblo non accetta IP specifico direttamente
+    QString portStr = QString::number(port);
 
-    // Inizializza il server OSC con il protocollo UDP
-    // Qui abbiamo esplicitamente specificato IP e porta
-    this->serverThread = lo_server_thread_new_with_proto(/*ip.toStdString().c_str()*/"8100", LO_UDP, nullptr);
+    qDebug() << "Starting OSC server on port" << portStr;
 
-    if (this->serverThread == nullptr)
+    this->serverThread = lo_server_thread_new_with_proto(portStr.toStdString().c_str(), LO_UDP, nullptr);
+    if (!this->serverThread)
     {
         qCritical() << "Failed to create OSC server thread.";
         return;
     }
 
-    qDebug() << "OSC Server thread created.";
+    lo_method m1 = lo_server_thread_add_method(this->serverThread, "/lights", "i", lightsHandler, this);
+    lo_method m2 = lo_server_thread_add_method(this->serverThread, "/fireMachine", "i", fireMachineHandler, this);
+    lo_method m3 = lo_server_thread_add_method(this->serverThread, "/blinders", "i", blindersHandler, this);
 
-    // Aggiungi i metodi per ciascun percorso
-    lo_method methodLights = lo_server_thread_add_method(this->serverThread, "/lights", "i", lightsHandler, gpio);
-    lo_method methodFireMachine = lo_server_thread_add_method(this->serverThread, "/fireMachine", "i", fireMachineHandler, gpio);
-    lo_method methodBlinders = lo_server_thread_add_method(this->serverThread, "/blinders", "i", blindersHandler, gpio);
-
-    // Verifica che i metodi siano stati aggiunti correttamente
-    if (methodLights == nullptr || methodFireMachine == nullptr || methodBlinders == nullptr) {
-        qCritical() << "Error adding methods to the server!";
+    if (!m1 || !m2 || !m3)
+    {
+        qCritical() << "Failed to add one or more OSC methods.";
         return;
     }
-    qDebug() << "Methods successfully added to OSC server.";
 
-    // Aggiungi un log per monitorare il comportamento prima di avviare il server
-    qDebug() << "Starting the server thread...";
-
-    // Avvia il server
     lo_server_thread_start(this->serverThread);
 
-    qDebug() << "Server thread started.";
-
-    // Log di conferma
-    qDebug() << "OSC Server started on IP:" << ip << "Port:" << port;
+    qDebug() << "OSC server started.";
 }
-
 
 int OscServer::lightsHandler(const char *path, const char *types, lo_arg **argv, int argc, lo_message msg, void *user_data)
 {
@@ -63,12 +52,13 @@ int OscServer::lightsHandler(const char *path, const char *types, lo_arg **argv,
     Q_UNUSED(argc);
     Q_UNUSED(msg);
 
-    // Log del messaggio ricevuto
-    qDebug() << "Received /lights message with value:" << (argv[0]->i == 1 ? "ON" :"OFF");
+    OscServer *self = static_cast<OscServer *>(user_data);
+    int value = argv[0]->i;
 
-    // Gestione GPIO per il controllo delle luci
-    GpioHandler *gpio = static_cast<GpioHandler *>(user_data);
-    gpio->setOutput(LED_PIN, argv[0]->i);
+    qDebug() << "Received /lights:" << (value ? "ON" : "OFF");
+
+    self->gpio->setOutput(LED_PIN, value);
+    emit self->sendGPIOStatus(value, s_OFF, s_OFF, s_OFF, s_OFF);
 
     return 0;
 }
@@ -80,54 +70,39 @@ int OscServer::fireMachineHandler(const char *path, const char *types, lo_arg **
     Q_UNUSED(argc);
     Q_UNUSED(msg);
 
-    // Log del messaggio ricevuto
-    qDebug() << "Received /fireMachine message with value:" << (argv[0]->i == 1 ? "ON" :"OFF");
+    OscServer *self = static_cast<OscServer *>(user_data);
+    int value = std::round((argv[0]->i)/3);
 
-    // Gestione GPIO per la macchina del fuoco
-    GpioHandler *gpio = static_cast<GpioHandler *>(user_data);
+    int fire1 = s_OFF;
+    int fire2 = s_OFF;
+    int fire3 = s_OFF;
 
-    // Ottieni il valore dell'argomento
-    int value = argv[0]->i;
-
-    // Aggiungi uno switch per gestire i valori da 0 a 3
     switch (value)
     {
     case 0:
-        qDebug() << "Received /lights with value 0: Turn OFF lights.";
-        // Logica per spegnere le luci
-        gpio->setOutput(LED_PIN, s_OFF);
-        gpio->setOutput(BLINDER_PIN, s_OFF);
-        gpio->setOutput(FIRE_PIN, s_ON);
         break;
-
     case 1:
-        qDebug() << "Received /lights with value 1: Turn ON lights.";
-        // Logica per accendere le luci
-        gpio->setOutput(LED_PIN, s_OFF);
-        gpio->setOutput(BLINDER_PIN, s_ON);
-        gpio->setOutput(FIRE_PIN, s_ON);
+        fire1 = s_ON;
         break;
-
     case 2:
-        qDebug() << "Received /lights with value 2: Dim lights.";
-        // Logica per diminuire la luminosit� delle luci
-        gpio->setOutput(LED_PIN, s_ON);
-        gpio->setOutput(BLINDER_PIN, s_ON);
-        gpio->setOutput(FIRE_PIN, s_ON);
+        fire1 = s_ON;
+        fire2 = s_ON;
         break;
-
     case 3:
-        qDebug() << "Received /lights with value 3: Set lights to a special mode.";
-        // Logica per modalit� speciale delle luci
-        gpio->setOutput(LED_PIN, s_ON);
-        gpio->setOutput(BLINDER_PIN, s_ON);
-        gpio->setOutput(FIRE_PIN, s_ON);
+        fire1 = s_ON;
+        fire2 = s_ON;
+        fire3 = s_ON;
         break;
-
     default:
-        qWarning() << "Received invalid value for /lights: " << value;
-        break;
+        qWarning() << "Invalid /fireMachine value:" << value;
+        return 0;
     }
+
+    self->gpio->setOutput(FIRE_PIN_1, fire1);
+    self->gpio->setOutput(FIRE_PIN_2, fire2);
+    self->gpio->setOutput(FIRE_PIN_3, fire3);
+
+    emit self->sendGPIOStatus(s_OFF, s_OFF, fire1, fire2, fire3);
 
     return 0;
 }
@@ -139,14 +114,13 @@ int OscServer::blindersHandler(const char *path, const char *types, lo_arg **arg
     Q_UNUSED(argc);
     Q_UNUSED(msg);
 
-    // Log del messaggio ricevuto
-    qDebug() << "Received /blinders message with value:" << argv[0]->i;
+    OscServer *self = static_cast<OscServer *>(user_data);
+    int value = argv[0]->i;
 
-    // Gestione GPIO per il controllo dei blinders
-    GpioHandler *gpio = static_cast<GpioHandler *>(user_data);
+    qDebug() << "Received /blinders:" << (value ? "ON" : "OFF");
 
-    gpio->setOutput(BLINDER_PIN, argv[0]->i);
-
+    self->gpio->setOutput(BLINDER_PIN, value);
+    emit self->sendGPIOStatus(s_OFF, value, s_OFF, s_OFF, s_OFF);
 
     return 0;
 }
