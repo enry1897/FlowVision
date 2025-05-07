@@ -10,7 +10,7 @@ class OscServer : public QObject
     Q_OBJECT
 
 public:
-    OscServer(GpioHandler *gpioHandler, QObject *parent = nullptr);
+    explicit OscServer(GpioHandler *gpioHandler, QObject *parent = nullptr);
     ~OscServer();
 
     void start(const QString &ip, int port);
@@ -22,6 +22,9 @@ private:
 
     GpioHandler *gpio;
     lo_server_thread serverThread;
+
+signals:
+    void sendGPIOStatus(int led, int blinders, int firePin1, int firePin2, int firePin3);
 };
 
 #endif // OSCSERVER_H
