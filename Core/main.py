@@ -31,12 +31,14 @@ else:
     print(f"{len(devices)} RealSense device(s) found.")
 
 # Configure OSC Client Address and Port
-ip = "127.0.0.1" #localhost
-port1 = 7700  #port for processing
+ip = "192.168.1.41" #localhost
+ip2 = "192.168.1.19"
+port1 = 8100  #port for processing
 
 
 # Create OSC Client
-client = SimpleUDPClient(ip, port1)
+client = SimpleUDPClient(ip, port1)     #light system
+#client2 = SimpleUDPClient(ip2, port1)   #raspberry pi
 
 
 # Avvia la pipeline
@@ -161,7 +163,9 @@ def is_right_arm_raised(frame, hands, landmarks, w, h):
                 cv2.rectangle(frame, (x_min, y_min), (x_max, y_max), (0, 255, 0), 2)
                 text = f"Classe: {predicted_class}, Conf: {confidence:.2f}"
                 cv2.putText(frame, text, (x_min, y_min - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (255, 255, 255), 2)
-
+        else:
+            # Escamotage per evitare errore se non ci sono mani
+            predicted_class = 1
 
         # Ottieni coordinate di spalla e polso destro
         right_shoulder = landmarks[mp_pose.PoseLandmark.RIGHT_SHOULDER]
@@ -293,14 +297,17 @@ def calculate_level(pose_landmarks, w, h, depth_image):
     
 def send_number_bilnders():
     client.send_message("/blinders", number_to_send_blinders)
+    #client2.send_message("/blinders", number_to_send_blinders)  #raspberry pi
     print(f"Sending a number blinders: {number_to_send_blinders}")
 
 def send_number_lights():
     client.send_message("/lights", number_to_send_light)
+    #client2.send_message("/lights", number_to_send_light)      #raspberry pi
     print(f"Sending a number light: {number_to_send_light}")
 
 def send_number_fire_machine():
     client.send_message("/fireMachine", number_to_send_fire_machine)
+    #client2.send_message("/fireMachine", number_to_send_fire_machine) #raspberry pi
     print(f"Sending a number fire machine: {number_to_send_fire_machine}")
 
 
