@@ -23,6 +23,7 @@ private slots:
     void onManualBlinderToggle();
     void onPbEnableAllClicked();
     void onPbDisableAllClicked();
+    void updateGPIOStatusFromOSC(int led, int blinders, int firePin1, int firePin2, int firePin3);
 
 private:
     Ui::MainWindow ui;              // <-- istanza della UI

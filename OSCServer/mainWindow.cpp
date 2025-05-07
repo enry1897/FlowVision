@@ -148,3 +148,12 @@ void MainWindow::onManualBlinderToggle()
 
 }
 
+void MainWindow::updateGPIOStatusFromOSC(int led, int blinders, int firePin1, int firePin2, int firePin3)
+{
+    this->ledStatus = led;
+    this->fire1Status = firePin1;
+    this->fire2Status = firePin2;
+    this->fire3Status = firePin3;
+    this->blinderStatus = blinders;
+}
+
