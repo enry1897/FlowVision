@@ -102,12 +102,12 @@
           <cursorShape>PointingHandCursor</cursorShape>
          </property>
          <property name="text">
-          <string>GPIO 17</string>
+          <string>GPIO 17 - LED</string>
          </property>
         </widget>
        </item>
        <item>
-        <widget class="QPushButton" name="pb_fire_27">
+        <widget class="QPushButton" name="pb_blinders_27">
          <property name="font">
           <font>
            <bold>true</bold>
@@ -117,12 +117,12 @@
           <cursorShape>PointingHandCursor</cursorShape>
          </property>
          <property name="text">
-          <string>GPIO 27</string>
+          <string>GPIO 27 - BLINDERS</string>
          </property>
         </widget>
        </item>
        <item>
-        <widget class="QPushButton" name="pb_blinders_22">
+        <widget class="QPushButton" name="pb_FM_1_22">
          <property name="font">
           <font>
            <bold>true</bold>
@@ -132,7 +132,37 @@
           <cursorShape>PointingHandCursor</cursorShape>
          </property>
          <property name="text">
-          <string>GPIO 22</string>
+          <string>GPIO 22 - FIRE MACHINE 1</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QPushButton" name="pb_FM_2_23">
+         <property name="font">
+          <font>
+           <bold>true</bold>
+          </font>
+         </property>
+         <property name="cursor">
+          <cursorShape>PointingHandCursor</cursorShape>
+         </property>
+         <property name="text">
+          <string>GPIO 23 - FIRE MACHINE 2</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QPushButton" name="pb_FM_3_24">
+         <property name="font">
+          <font>
+           <bold>true</bold>
+          </font>
+         </property>
+         <property name="cursor">
+          <cursorShape>PointingHandCursor</cursorShape>
+         </property>
+         <property name="text">
+          <string>GPIO 24 - FIRE MACHINE 3</string>
          </property>
         </widget>
        </item>
@@ -210,9 +240,9 @@
         </layout>
        </item>
        <item>
-        <layout class="QHBoxLayout" name="horizontalLayout_5">
+        <layout class="QHBoxLayout" name="hl_GPIO17_LED">
          <item>
-          <widget class="QLabel" name="lbl_GPIO17">
+          <widget class="QLabel" name="lbl_GPIO17_LED">
            <property name="font">
             <font>
              <pointsize>11</pointsize>
@@ -225,7 +255,7 @@
           </widget>
          </item>
          <item>
-          <widget class="QLabel" name="lbl_GPIO17_status">
+          <widget class="QLabel" name="lbl_GPIO17_LED_status">
            <property name="font">
             <font>
              <pointsize>12</pointsize>
@@ -240,9 +270,9 @@
         </layout>
        </item>
        <item>
-        <layout class="QHBoxLayout" name="horizontalLayout_4">
+        <layout class="QHBoxLayout" name="hl_GPIO27_blinders">
          <item>
-          <widget class="QLabel" name="label_2">
+          <widget class="QLabel" name="lbl_GPIO27_blinders">
            <property name="font">
             <font>
              <pointsize>11</pointsize>
@@ -250,12 +280,12 @@
             </font>
            </property>
            <property name="text">
-            <string>GPIO 27 status Fire Machine:</string>
+            <string>GPIO 27 status Blinders:</string>
            </property>
           </widget>
          </item>
          <item>
-          <widget class="QLabel" name="lbl_GPIO27_status">
+          <widget class="QLabel" name="lbl_GPIO27_blinders_status">
            <property name="font">
             <font>
              <pointsize>12</pointsize>
@@ -270,9 +300,9 @@
         </layout>
        </item>
        <item>
-        <layout class="QHBoxLayout" name="horizontalLayout_2">
+        <layout class="QHBoxLayout" name="hl_GPIO22_FM_1">
          <item>
-          <widget class="QLabel" name="label_3">
+          <widget class="QLabel" name="lbl_GPIO22_FM_1">
            <property name="font">
             <font>
              <pointsize>11</pointsize>
@@ -280,12 +310,72 @@
             </font>
            </property>
            <property name="text">
-            <string>GPIO 22 status Blinders:</string>
+            <string>GPIO 22 status Fire Machine 1:</string>
            </property>
           </widget>
          </item>
          <item>
-          <widget class="QLabel" name="lbl_GPIO22_status">
+          <widget class="QLabel" name="lbl_GPIO22_FM_1_status">
+           <property name="font">
+            <font>
+             <pointsize>12</pointsize>
+             <bold>true</bold>
+            </font>
+           </property>
+           <property name="text">
+            <string>OFF</string>
+           </property>
+          </widget>
+         </item>
+        </layout>
+       </item>
+       <item>
+        <layout class="QHBoxLayout" name="hl_GPIO23_FM_2">
+         <item>
+          <widget class="QLabel" name="lbl_GPIO23_FM_2">
+           <property name="font">
+            <font>
+             <pointsize>11</pointsize>
+             <bold>true</bold>
+            </font>
+           </property>
+           <property name="text">
+            <string>GPIO 23 status Fire Machine 2:</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QLabel" name="lbl_GPIO23_FM_2_status">
+           <property name="font">
+            <font>
+             <pointsize>12</pointsize>
+             <bold>true</bold>
+            </font>
+           </property>
+           <property name="text">
+            <string>OFF</string>
+           </property>
+          </widget>
+         </item>
+        </layout>
+       </item>
+       <item>
+        <layout class="QHBoxLayout" name="hl_GPIO24_FM_3">
+         <item>
+          <widget class="QLabel" name="lbl_GPIO24_FM_3">
+           <property name="font">
+            <font>
+             <pointsize>11</pointsize>
+             <bold>true</bold>
+            </font>
+           </property>
+           <property name="text">
+            <string>GPIO 24 status Fire Machine 3:</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QLabel" name="lbl_GPIO24_FM_3_status">
            <property name="font">
             <font>
              <pointsize>12</pointsize>
