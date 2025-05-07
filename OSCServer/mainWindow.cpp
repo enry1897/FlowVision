@@ -1,6 +1,11 @@
 #include "mainWindow.h"
 #include <QDebug>
 
+/**
+ * @brief MainWindow::MainWindow
+ * @author Davide Lorenzi
+ * @param parent
+ */
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent), oscServer(new OscServer(&gpio, this))
 {
@@ -15,15 +20,7 @@ MainWindow::MainWindow(QWidget *parent)
     if(!connect(this->ui.pb_enable_all  , &QPushButton::clicked, this, &MainWindow::onPbEnableAllClicked)) Q_ASSERT(false);
     if(!connect(this->ui.pb_disable_all , &QPushButton::clicked, this, &MainWindow::onPbDisableAllClicked)) Q_ASSERT(false);
 
-
-    this->oscServer->start("192.168.1.53",8100);
-
-    this->checkTimer = new QTimer(this);
-    this->checkTimer->setInterval(20);
-
-    if (!connect(checkTimer, &QTimer::timeout, this, &MainWindow::checkRoutine)) Q_ASSERT(false);
-    this->checkTimer->start();
-
+    this->oscServer->start("192.168.1.19",8100);
 
     //init port status
 
@@ -39,6 +36,14 @@ MainWindow::MainWindow(QWidget *parent)
     gpio.setOutput(FIRE_PIN_2, this->fire2Status);
     gpio.setOutput(FIRE_PIN_3, this->fire3Status);
     gpio.setOutput(BLINDER_PIN, this->blinderStatus);
+
+    this->checkTimer = new QTimer(this);
+    this->checkTimer->setInterval(20);
+
+    if (!connect(checkTimer, &QTimer::timeout, this, &MainWindow::checkRoutine)) Q_ASSERT(false);
+    this->checkTimer->start();
+
+
 }
 
 
@@ -47,7 +52,9 @@ MainWindow::~MainWindow()
     delete oscServer;
 }
 
-
+/**
+ * @brief MainWindow::checkRoutine gui update routine
+ */
 void MainWindow::checkRoutine()
 {
     this->ui.lbl_GPIO17_LED_status->setText(this->ledStatus ? "ON" : "OFF");
@@ -58,7 +65,9 @@ void MainWindow::checkRoutine()
 }
 
 
-
+/**
+ * @brief MainWindow::onPbEnableAllClicked enables all gpios
+ */
 void MainWindow::onPbEnableAllClicked()
 {
     this->ledStatus = gpio.setOutput(LED_PIN,s_ON);
@@ -69,6 +78,9 @@ void MainWindow::onPbEnableAllClicked()
 
 }
 
+/**
+ * @brief MainWindow::onPbDisableAllClicked resets all GPIO status
+ */
 void MainWindow::onPbDisableAllClicked()
 {
     this->ledStatus = gpio.setOutput(LED_PIN,s_OFF);
@@ -78,6 +90,9 @@ void MainWindow::onPbDisableAllClicked()
     this->fire3Status = gpio.setOutput(FIRE_PIN_3,s_OFF);
 }
 
+/**
+ * @brief MainWindow::onManualLedToggle  changes the value of led
+ */
 void MainWindow::onManualLedToggle()
 {
     //bool currentState = gpio.readInput(LED_PIN);
@@ -92,6 +107,9 @@ void MainWindow::onManualLedToggle()
 
 }
 
+/**
+ * @brief MainWindow::onManualFire1Toggle  changes the value of Fire Machine 1
+ */
 void MainWindow::onManualFire1Toggle()
 {
     //bool currentState = gpio.readInput(FIRE_PIN);
@@ -106,12 +124,15 @@ void MainWindow::onManualFire1Toggle()
 
 }
 
+/**
+ * @brief MainWindow::onManualFire2Toggle changes the value of Fire Machine 2
+ */
 void MainWindow::onManualFire2Toggle()
 {
     //bool currentState = gpio.readInput(FIRE_PIN);
     //printf("[FIRE] Current state: %s\n", currentState ? "ON" : "OFF");
 
-    bool newState = !this->fire1Status;
+    bool newState = !this->fire2Status;
     printf("[FIRE] Applying new state: %s\n", newState ? "ON" : "OFF");
     this->fire2Status = gpio.setOutput(FIRE_PIN_2, newState);
 
@@ -120,12 +141,15 @@ void MainWindow::onManualFire2Toggle()
 
 }
 
+/**
+ * @brief MainWindow::onManualFire3Toggle changes the value of Fire Machine 3
+ */
 void MainWindow::onManualFire3Toggle()
 {
     //bool currentState = gpio.readInput(FIRE_PIN);
     //printf("[FIRE] Current state: %s\n", currentState ? "ON" : "OFF");
 
-    bool newState = !this->fire1Status;
+    bool newState = !this->fire3Status;
     printf("[FIRE] Applying new state: %s\n", newState ? "ON" : "OFF");
     this->fire3Status = gpio.setOutput(FIRE_PIN_3, newState);
 
@@ -134,6 +158,9 @@ void MainWindow::onManualFire3Toggle()
 
 }
 
+/**
+ * @brief MainWindow::onManualBlinderToggle changes the value of blinder
+ */
 void MainWindow::onManualBlinderToggle()
 {
     //bool currentState = gpio.readInput(BLINDER_PIN);
@@ -148,6 +175,14 @@ void MainWindow::onManualBlinderToggle()
 
 }
 
+/**
+ * @brief MainWindow::updateGPIOStatusFromOSC gets GPIO status info from OSC
+ * @param led status
+ * @param blinders status
+ * @param firePin1 status
+ * @param firePin2 status
+ * @param firePin3 status
+ */
 void MainWindow::updateGPIOStatusFromOSC(int led, int blinders, int firePin1, int firePin2, int firePin3)
 {
     this->ledStatus = led;

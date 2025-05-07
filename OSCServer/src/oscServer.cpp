@@ -1,6 +1,12 @@
 #include "oscServer.h"
 #include <QDebug>
 
+/**
+ * @brief OscServer::OscServer
+ * @author Davide Lorenzi
+ * @param gpioHandler
+ * @param parent
+ */
 OscServer::OscServer(GpioHandler *gpioHandler, QObject *parent)
     : QObject(parent),
       gpio(gpioHandler),
@@ -8,6 +14,9 @@ OscServer::OscServer(GpioHandler *gpioHandler, QObject *parent)
 {
 }
 
+/**
+ * @brief OscServer::~OscServer
+ */
 OscServer::~OscServer()
 {
     if (this->serverThread)
@@ -16,6 +25,11 @@ OscServer::~OscServer()
     }
 }
 
+/**
+ * @brief OscServer::start
+ * @param ip
+ * @param port
+ */
 void OscServer::start(const QString &ip, int port)
 {
     Q_UNUSED(ip); // Liblo non accetta IP specifico direttamente
@@ -45,6 +59,16 @@ void OscServer::start(const QString &ip, int port)
     qDebug() << "OSC server started.";
 }
 
+/**
+ * @brief OscServer::lightsHandler
+ * @param path
+ * @param types
+ * @param argv
+ * @param argc
+ * @param msg
+ * @param user_data
+ * @return
+ */
 int OscServer::lightsHandler(const char *path, const char *types, lo_arg **argv, int argc, lo_message msg, void *user_data)
 {
     Q_UNUSED(path);
@@ -63,6 +87,16 @@ int OscServer::lightsHandler(const char *path, const char *types, lo_arg **argv,
     return 0;
 }
 
+/**
+ * @brief OscServer::fireMachineHandler
+ * @param path
+ * @param types
+ * @param argv
+ * @param argc
+ * @param msg
+ * @param user_data
+ * @return
+ */
 int OscServer::fireMachineHandler(const char *path, const char *types, lo_arg **argv, int argc, lo_message msg, void *user_data)
 {
     Q_UNUSED(path);
@@ -107,6 +141,16 @@ int OscServer::fireMachineHandler(const char *path, const char *types, lo_arg **
     return 0;
 }
 
+/**
+ * @brief OscServer::blindersHandler
+ * @param path
+ * @param types
+ * @param argv
+ * @param argc
+ * @param msg
+ * @param user_data
+ * @return
+ */
 int OscServer::blindersHandler(const char *path, const char *types, lo_arg **argv, int argc, lo_message msg, void *user_data)
 {
     Q_UNUSED(path);
