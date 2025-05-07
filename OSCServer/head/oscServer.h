@@ -10,7 +10,7 @@ class OscServer : public QObject
     Q_OBJECT
 
 public:
-    OscServer(GpioHandler *gpioHandler, QObject *parent = nullptr);
+    explicit OscServer(GpioHandler *gpioHandler, QObject *parent = nullptr);
     ~OscServer();
 
     void start(const QString &ip, int port);
@@ -20,8 +20,14 @@ private:
     static int fireMachineHandler(const char *path, const char *types, lo_arg **argv, int argc, lo_message msg, void *user_data);
     static int blindersHandler(const char *path, const char *types, lo_arg **argv, int argc, lo_message msg, void *user_data);
 
+    static void setGPIOStatus(int led, int blinders, int firePin1, int firePin2,int firePin3);
+
     GpioHandler *gpio;
     lo_server_thread serverThread;
+
+signals:
+    void resetGPIO();
+    void sendGPIOStatus(int led, int blinders, int firePin1, int firePin2,int firePin3);
 };
 
 #endif // OSCSERVER_H

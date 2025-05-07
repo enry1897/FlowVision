@@ -68,7 +68,12 @@ int OscServer::lightsHandler(const char *path, const char *types, lo_arg **argv,
 
     // Gestione GPIO per il controllo delle luci
     GpioHandler *gpio = static_cast<GpioHandler *>(user_data);
+
     gpio->setOutput(LED_PIN, argv[0]->i);
+    OscServer::setGPIOStatus(argv[0]->i,s_OFF,s_OFF,s_OFF,s_OFF);
+
+    //reset other pins
+
 
     return 0;
 }
@@ -87,7 +92,7 @@ int OscServer::fireMachineHandler(const char *path, const char *types, lo_arg **
     GpioHandler *gpio = static_cast<GpioHandler *>(user_data);
 
     // Ottieni il valore dell'argomento
-    int value = argv[0]->i;
+    int value = (argv[0]->i)/3;
 
     // Aggiungi uno switch per gestire i valori da 0 a 3
     switch (value)
@@ -95,33 +100,37 @@ int OscServer::fireMachineHandler(const char *path, const char *types, lo_arg **
     case 0:
         qDebug() << "Received /lights with value 0: Turn OFF lights.";
         // Logica per spegnere le luci
-        gpio->setOutput(LED_PIN, s_OFF);
-        gpio->setOutput(BLINDER_PIN, s_OFF);
-        gpio->setOutput(FIRE_PIN, s_ON);
+        gpio->setOutput(FIRE_PIN_1, s_OFF);
+        gpio->setOutput(FIRE_PIN_2, s_OFF);
+        gpio->setOutput(FIRE_PIN_3, s_OFF);
+        OscServer::setGPIOStatus(s_OFF,s_OFF,s_OFF,s_OFF,s_OFF);
         break;
 
     case 1:
         qDebug() << "Received /lights with value 1: Turn ON lights.";
         // Logica per accendere le luci
-        gpio->setOutput(LED_PIN, s_OFF);
-        gpio->setOutput(BLINDER_PIN, s_ON);
-        gpio->setOutput(FIRE_PIN, s_ON);
+        gpio->setOutput(FIRE_PIN_1, s_ON);
+        gpio->setOutput(FIRE_PIN_2, s_OFF);
+        gpio->setOutput(FIRE_PIN_3, s_OFF);
+        OscServer::setGPIOStatus(s_OFF,s_OFF,s_ON,s_OFF,s_OFF);
         break;
 
     case 2:
         qDebug() << "Received /lights with value 2: Dim lights.";
         // Logica per diminuire la luminosit� delle luci
-        gpio->setOutput(LED_PIN, s_ON);
-        gpio->setOutput(BLINDER_PIN, s_ON);
-        gpio->setOutput(FIRE_PIN, s_ON);
+        gpio->setOutput(FIRE_PIN_1, s_ON);
+        gpio->setOutput(FIRE_PIN_2, s_ON);
+        gpio->setOutput(FIRE_PIN_3, s_OFF);
+        OscServer::setGPIOStatus(s_OFF,s_OFF,s_ON,s_ON,s_OFF);
         break;
 
     case 3:
         qDebug() << "Received /lights with value 3: Set lights to a special mode.";
         // Logica per modalit� speciale delle luci
-        gpio->setOutput(LED_PIN, s_ON);
-        gpio->setOutput(BLINDER_PIN, s_ON);
-        gpio->setOutput(FIRE_PIN, s_ON);
+        gpio->setOutput(FIRE_PIN_1, s_ON);
+        gpio->setOutput(FIRE_PIN_2, s_ON);
+        gpio->setOutput(FIRE_PIN_3, s_ON);
+        OscServer::setGPIOStatus(s_OFF,s_OFF,s_ON,s_ON,s_ON);
         break;
 
     default:
@@ -146,7 +155,11 @@ int OscServer::blindersHandler(const char *path, const char *types, lo_arg **arg
     GpioHandler *gpio = static_cast<GpioHandler *>(user_data);
 
     gpio->setOutput(BLINDER_PIN, argv[0]->i);
-
-
+    OscServer::setGPIOStatus(s_OFF,argv[0]->i,s_OFF,s_OFF,s_OFF);
     return 0;
+}
+
+void OscServer::setGPIOStatus(int led, int blinders, int firePin1, int firePin2,int firePin3)
+{
+    emit sendGPIOStatus(led,blinders,firePin1,firePin2,firePin3);
 }

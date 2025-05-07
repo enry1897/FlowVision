@@ -17,7 +17,9 @@ public:
 
 private slots:
     void onManualLedToggle();
-    void onManualFireToggle();
+    void onManualFire1Toggle();
+    void onManualFire2Toggle();
+    void onManualFire3Toggle();
     void onManualBlinderToggle();
     void onPbEnableAllClicked();
     void onPbDisableAllClicked();
@@ -28,7 +30,9 @@ private:
     OscServer *oscServer;
 
     bool ledStatus;
-    bool fireStatus;
+    bool fire1Status;
+    bool fire2Status;
+    bool fire3Status;
     bool blinderStatus;
 
     void checkRoutine();
