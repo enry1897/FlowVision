@@ -1,4 +1,7 @@
 # FlowVision
+<p align="center">
+    <img src="deliveries/logo.png" alt="alt text">
+</p>
 
 ## Group:
 
@@ -21,15 +24,21 @@
 6.  Implementazione eventuale interfaccia
 
 
-
-### Microtasks completate
-
- 
-
-
-### Microtasks da completare
--	Implementare il codice di pre-processing. Questo deve eseguire object detection (riconoscere la mano all’interno dell’immagine), normalisation and aligment (in modo che la mano sia inserita all’interno di un quadrato 120x120px). Il risultato sarà dato in pasto al modello_performante che dirà se la mano è chiusa o aperta.
--	Configurazione del guanto
-
-## Description of the project
+## Project description
 The main claim of our project is to create a system that allow people with visual impairments to control stage effects consciously. We use a camera to detect performers' gestures by using a machine learning algorithm to easily perform it. Then we send OSC messages to comunicate with RaspberryPi to controll a feedback glove that vibrate in different way according to the type of data that we have detected. Last step we comunicate with lights and other stage machine in order to obtain the desirable effect.
+
+### Jupyter environment
+Python --- has been used to run notebook.
+Tensorflow --- is used for the machine learning part. Additionally, following libraries were also installed for some specific audio-processing tasks:
+
+* Librosa ---
+* Scikit-learn ---
+
+## Classifiers Architecture
+The two AI model proposed 
+
+
+## Repository structure and file list
+- *Auxiliar*:
+    in this fold, the jupyter notebooks to train the neural networks are reported
+    >[Fist_Neural_Nets_Project](Auxiliar/Fist_Neural_Nets_Project.ipynb.ipynb)
