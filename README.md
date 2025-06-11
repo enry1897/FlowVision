@@ -1,6 +1,6 @@
 # FlowVision
 <p align="center">
-    <img src="deliveries/Logo.png" alt="alt text">
+    <img src="Deliveries/Logo.png" alt="alt text">
 </p>
 
 ## Group:
