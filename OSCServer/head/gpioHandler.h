@@ -6,8 +6,11 @@
 #include <QMap>
 
 const int LED_PIN = 17;
-const int FIRE_PIN = 27;
-const int BLINDER_PIN = 22;
+const int BLINDER_PIN = 27;
+const int FIRE_PIN_1 = 22;
+const int FIRE_PIN_2 = 23;
+const int FIRE_PIN_3 = 24;
+
 
 enum gpio_status
 {

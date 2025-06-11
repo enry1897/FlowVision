@@ -3,6 +3,9 @@
 
 #define GPIO_CHIP_PATH "/dev/gpiochip0"
 
+/**
+ * @brief GpioHandler::GpioHandler
+ */
 GpioHandler::GpioHandler()
 {
     chip = gpiod_chip_open(GPIO_CHIP_PATH);
@@ -12,11 +15,20 @@ GpioHandler::GpioHandler()
     }
 }
 
+/**
+ * @brief GpioHandler::~GpioHandler
+ */
 GpioHandler::~GpioHandler()
 {
     cleanup();
 }
 
+/**
+ * @brief GpioHandler::ensureLine
+ * @param pin
+ * @param output
+ * @return
+ */
 struct gpiod_line *GpioHandler::ensureLine(int pin, bool output)
 {
     if (!chip)
@@ -59,6 +71,12 @@ struct gpiod_line *GpioHandler::ensureLine(int pin, bool output)
     return line;
 }
 
+/**
+ * @brief GpioHandler::setOutput
+ * @param pin
+ * @param value
+ * @return
+ */
 bool GpioHandler::setOutput(int pin, bool value)
 {
     if (!chip)
@@ -126,6 +144,11 @@ bool GpioHandler::setOutput(int pin, bool value)
     return value == 1;
 }*/
 
+/**
+ * @brief GpioHandler::readInput
+ * @param pin
+ * @return
+ */
 bool GpioHandler::readInput(int pin)
 {
     if (!chip)
@@ -151,7 +174,9 @@ bool GpioHandler::readInput(int pin)
 }
 
 
-
+/**
+ * @brief GpioHandler::cleanup
+ */
 void GpioHandler::cleanup()
 {
     for (auto line : lines.values())
