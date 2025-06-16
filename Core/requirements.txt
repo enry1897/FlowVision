@@ -1,0 +1,5 @@
+opencv-python==4.11.0.86
+mediapipe
+pyrealsense2==2.55.1.6486
+numpy==2.2.3
+python-osc==1.9.3
