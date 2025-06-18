@@ -32,14 +32,14 @@ else:
     print(f"{len(devices)} RealSense device(s) found.")
 
 # Configure OSC Client Address and Port
-ip = "192.168.1.41" #localhost
+ip = "192.168.1.34" #localhost
 ip2 = "192.168.1.19"
 port1 = 8100  #port for processing
 
 
 # Create OSC Client
-#client = SimpleUDPClient(ip, port1)     #light system
-#client2 = SimpleUDPClient(ip2, port1)   #raspberry pi
+client = SimpleUDPClient(ip, port1)     #light system
+client2 = SimpleUDPClient(ip2, port1)   #raspberry pi
 
 
 # Avvia la pipeline
@@ -82,7 +82,7 @@ HAND_HEIGHT_TOLERANCE = 0.10  # Tolleranza maggiore, adesso è 10 cm
 STABILITY_WAIT_TIME = 1.0  # Tempo di attesa in secondi
 # Isteresi per il livello
 LEVEL_CHANGE_THRESHOLD = 1  # La quantità minima di cambiamento per modificare il livello
-
+HYSTERESIS_FRAMES = 10      # Numero di frame stabili richiesti per cambiare il livello delle mani che si alzano sui lati
 
 ##FUNCTIONS
 
@@ -190,7 +190,7 @@ def is_right_arm_raised(
         lw_xy = np.array([lw.x * w, lw.y * h])
 
         # ---------- Check posture condition (right up, left down) ------------
-        if rw_xy[1] < rs_xy[1] and lw_xy[1] > ls_xy[1]:
+        if rw_xy[1] < rs_xy[1] and lw_xy[1] > ls_xy[1] and 2*rw_xy[1] < lw_xy[1]:
             rois = []
             boxes = []
 
@@ -320,8 +320,12 @@ def check_hands_on_heart(pose_landmarks, w, h):
 
 
 # Funzione per calcolare il livello proporzionale --- TRACKING 3 -- CO2
+# Global variables for hysteresis state in calculate_level
+stable_counter = 0
+last_level = 0
+
 def calculate_level(pose_landmarks, w, h, depth_image):
-    global level, prev_level
+    global level, prev_level, stable_counter, last_level
     try:
         # Coordinate chiave: spalle, anche, polsi
         right_shoulder = pose_landmarks[mp_pose.PoseLandmark.RIGHT_SHOULDER]
@@ -350,26 +354,39 @@ def calculate_level(pose_landmarks, w, h, depth_image):
         # Altezza media delle mani
         avg_hand_height = (right_wrist.y + left_wrist.y) / 2
 
-        # Altezza media delle spalle e delle anche
+        # Altezza media delle spalle
         avg_shoulder_height = (right_shoulder.y + left_shoulder.y) / 2
-        avg_hip_height = (right_hip.y + left_hip.y) / 2
 
         # Calcolo della differenza di altezza tra i polsi
         wrist_height_diff = abs(right_wrist.y - left_wrist.y)
 
+        # Limiti: tra le spalle (alto) e le anche (basso)
+        upper_limit = avg_shoulder_height+ 0.10  # Aggiungi un offset per evitare che il livello sia troppo alto
+        lower_limit = (right_hip.y + left_hip.y) / 2
+
         # Condizioni per aumentare il livello
         if (
-            right_wrist.y < avg_hip_height and left_wrist.y < avg_hip_height
+            right_wrist.y < lower_limit and left_wrist.y < lower_limit
             and wrist_height_diff < HAND_HEIGHT_TOLERANCE
         ):  # Entrambe le mani sopra le anche
-            normalized_height = (avg_hip_height - avg_hand_height) / (avg_hip_height - avg_shoulder_height * 0.5)
+            # Normalizza tra spalle (livello max) e anche (livello min)
+            normalized_height = (lower_limit - avg_hand_height) / (lower_limit - upper_limit)
+            normalized_height = np.clip(normalized_height, 0, 1)
             new_level = min(int(normalized_height * max_level), max_level)  # Mappa a livello tra 0 e max_level
         else:
             # Se le mani non soddisfano i criteri, resetta il livello
             new_level = 0
 
-        # Isteresi per il cambio di livello
-        if abs(new_level - prev_level) >= LEVEL_CHANGE_THRESHOLD:
+        # Hysteresis: only update level if new_level is stable for N frames
+        # or if the change is significant
+        if new_level == last_level:
+            stable_counter += 1
+        else:
+            stable_counter = 1
+            last_level = new_level
+
+        # Only update if stable for enough frames or big jump
+        if abs(new_level - prev_level) >= LEVEL_CHANGE_THRESHOLD and stable_counter >= HYSTERESIS_FRAMES:
             level = new_level
             prev_level = level
 
@@ -380,25 +397,23 @@ def calculate_level(pose_landmarks, w, h, depth_image):
 # OSC Functions
     
 def send_number_bilnders():
-    #client.send_message("/blinders", number_to_send_blinders)
-    #client2.send_message("/blinders", number_to_send_blinders)  #raspberry pi
+    client.send_message("/blinders", number_to_send_blinders)
+    client2.send_message("/blinders", number_to_send_blinders)  #raspberry pi
     print(f"Sending a number blinders: {number_to_send_blinders}")
 
 def send_number_lights():
-    #client.send_message("/lights", number_to_send_light)
-    #client2.send_message("/lights", number_to_send_light)      #raspberry pi
+    client.send_message("/lights", number_to_send_light)
+    client2.send_message("/lights", number_to_send_light)      #raspberry pi
     print(f"Sending a number light: {number_to_send_light}")
 
 def send_number_fire_machine():
-    #client.send_message("/fireMachine", number_to_send_fire_machine)
-    #client2.send_message("/fireMachine", number_to_send_fire_machine) #raspberry pi
+    client.send_message("/fireMachine", number_to_send_fire_machine*10) # 0-100 range for fire machine
+    client2.send_message("/fireMachine", number_to_send_fire_machine) #raspberry pi
     print(f"Sending a number fire machine: {number_to_send_fire_machine}")
 
 
 
 # MAIN LOOP
-
-
 try:
     initial_time = time.time()  # Tempo di inizio
     contatore_arm = 0
@@ -433,8 +448,7 @@ try:
             if check_hands_on_heart(pose_results.pose_landmarks.landmark, w, h):
                 # Mostra il messaggio se le mani sono sovrapposte al cuore
                 heart = 1
-
-                cv2.putText(color_image, "Hands on Heart Detected!", (50, 50),
+                cv2.putText(color_image, "Hands on Heart Detected!", (w - 420, 50),
                             cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
             
             number_to_send_light = heart
@@ -459,7 +473,7 @@ try:
             
             if right_arm_fixed:
                 print("Funzione attivata: braccio destro alzato!")
-                cv2.putText(color_image, "Right arm raised!", (50, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
+                cv2.putText(color_image, "Right arm raised!", (w - 300, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
                 right_arm_high = 1
                 
             number_to_send_blinders = int(right_arm_high)
