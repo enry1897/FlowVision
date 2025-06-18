@@ -9,7 +9,7 @@ from tensorflow.keras.preprocessing.image import img_to_array
 
 # Carica il modello AI per mano aperta
 model_hand = load_model('/Users/filippo/Library/CloudStorage/OneDrive-PolitecnicodiMilano/Corsi/Creative Programming and Computing ⌨️/Clone GitHub/FlowVision/Core/ML/modello_Python_aggiornato.h5')
-model_cuoricini = load_model('/Users/filippo/Library/CloudStorage/OneDrive-PolitecnicodiMilano/Corsi/Creative Programming and Computing ⌨️/Clone GitHub/FlowVision/Core/ML/cuoricini_ep_30.h5')
+model_cuoricini = load_model('/Users/filippo/Library/CloudStorage/OneDrive-PolitecnicodiMilano/Corsi/Creative Programming and Computing ⌨️/Clone GitHub/FlowVision/Core/ML/cuoricini_ep_40.h5')
 
 # Inizializza MediaPipe
 mp_pose = mp.solutions.pose
@@ -67,6 +67,7 @@ print(f"Depth Scale: {depth_scale} meters per unit")
 HEART_REGION_TOLERANCE = 0.10  # Tolleranza per la sovrapposizione con il cuore (percentuale della larghezza dell'immagine)
 SHOULDER_DISTANCE = 0.45  # Distanza tra le spalle in metri
 ARM_LENGTH = 0.60  # Lunghezza del braccio in metri
+CLOSENESS_WRISTS_TOLERANCE = 0.10  # Tolleranza per la distanza tra i polsi (in percuentuale) quando si fanno i cuoricini
 
 ## Parametri per il livello TRACKING 3 -- CO2
 
@@ -249,7 +250,11 @@ def check_hands_on_heart(pose_landmarks, w, h):
                 # Visualizza il risultato sulla ROI
                 cv2.putText(color_image, f"Cuoricini: {predicted_class}, Conf: {confidence:.2f}", (x_min, y_min - 10),
                             cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2)
-                if predicted_class == 1:  # Se la classe predetta è cuoricini
+                distance_between_wrists = calculate_distance(
+                    (right_wrist.x * w, right_wrist.y * h),
+                    (left_wrist.x * w, left_wrist.y * h)
+                )
+                if (predicted_class == 1) and (distance_between_wrists > CLOSENESS_WRISTS_TOLERANCE * w):  # Se la classe predetta è cuoricini
                     return True  # Le mani sono sovrapposte al cuore con un cuoricino
             else:
                 return False
