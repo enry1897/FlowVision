@@ -8,7 +8,8 @@ from tensorflow.keras.models import load_model
 from tensorflow.keras.preprocessing.image import img_to_array
 
 # Carica il modello AI per mano aperta
-model = load_model('/Users/filippo/Library/CloudStorage/OneDrive-PolitecnicodiMilano/Corsi/Creative Programming and Computing ⌨️/Clone GitHub/FlowVision/Core/ML/modello_Python_aggiornato.h5')
+model_hand = load_model('/Users/filippo/Library/CloudStorage/OneDrive-PolitecnicodiMilano/Corsi/Creative Programming and Computing ⌨️/Clone GitHub/FlowVision/Core/ML/modello_Python_aggiornato.h5')
+model_cuoricini = load_model('/Users/filippo/Library/CloudStorage/OneDrive-PolitecnicodiMilano/Corsi/Creative Programming and Computing ⌨️/Clone GitHub/FlowVision/Core/ML/cuoricini_ep_30.h5')
 
 # Inizializza MediaPipe
 mp_pose = mp.solutions.pose
@@ -37,7 +38,7 @@ port1 = 8100  #port for processing
 
 
 # Create OSC Client
-client = SimpleUDPClient(ip, port1)     #light system
+#client = SimpleUDPClient(ip, port1)     #light system
 #client2 = SimpleUDPClient(ip2, port1)   #raspberry pi
 
 
@@ -155,7 +156,7 @@ def is_right_arm_raised(frame, hands, landmarks, w, h):
                 hand_img = np.expand_dims(hand_img, axis=0)
 
                 # Predizione
-                prediction = model.predict(hand_img)
+                prediction = model_hand.predict(hand_img)
                 predicted_class = np.argmax(prediction)
                 confidence = np.max(prediction)
 
@@ -203,13 +204,6 @@ def check_hands_on_heart(pose_landmarks, w, h):
         left_wrist = pose_landmarks[mp_pose.PoseLandmark.LEFT_WRIST]
         left_hip = pose_landmarks[mp_pose.PoseLandmark.LEFT_HIP]
 
-        # Converti in pixel
-        right_shoulder_px = (int(right_shoulder.x * w), int(right_shoulder.y * h))
-        left_shoulder_px = (int(left_shoulder.x * w), int(left_shoulder.y * h))
-        right_wrist_px = (int(right_wrist.x * w), int(right_wrist.y * h))
-        left_wrist_px = (int(left_wrist.x * w), int(left_wrist.y * h))
-        left_hip_px = (int(left_hip.x * w), int(left_hip.y * h))
-
         if right_wrist.y > right_shoulder.y and right_wrist.y < left_hip.y:
             # Definiamo la zona del cuore come il centro tra le spalle
             # print("calcolo cuore")
@@ -226,7 +220,37 @@ def check_hands_on_heart(pose_landmarks, w, h):
 
             # Se entrambe le mani sono abbastanza vicine alla zona del cuore, attiviamo una funzione
             if right_wrist_distance < HEART_REGION_TOLERANCE * w and left_wrist_distance < HEART_REGION_TOLERANCE * w:
-                return True  # Le mani sono sovrapposte al cuore
+                #Detail control
+                # Ottieni bounding box intorno alle mani
+                landmark_array = np.array([
+                    (pose_landmarks[mp_pose.PoseLandmark.RIGHT_WRIST].x * w, pose_landmarks[mp_pose.PoseLandmark.RIGHT_WRIST].y * h),
+                    (pose_landmarks[mp_pose.PoseLandmark.LEFT_WRIST].x * w, pose_landmarks[mp_pose.PoseLandmark.LEFT_WRIST].y * h)
+                ])
+                x_min = int(np.min(landmark_array[:, 0]) - 10)
+                y_min = int(np.min(landmark_array[:, 1]) - 50)
+                x_max = int(np.max(landmark_array[:, 0]) + 10)
+                y_max = int(np.max(landmark_array[:, 1]) + 30)
+
+                x_min, y_min = max(x_min, 0), max(y_min, 0)
+                x_max, y_max = min(x_max, w), min(y_max, h)
+
+                cropped_hands = color_image[y_min:y_max, x_min:x_max]
+                cv2.rectangle(color_image, (x_min, y_min), (x_max, y_max), (0, 0, 255), 2)
+                # Prepara l'immagine per il modello cuoricini
+                cropped_hands_resized = cv2.resize(cropped_hands, (120, 120))
+                cropped_hands_array = img_to_array(cropped_hands_resized) / 255.0
+                cropped_hands_array = np.expand_dims(cropped_hands_array, axis=0)
+
+                # Esegui la predizione
+                prediction = model_cuoricini.predict(cropped_hands_array)
+                predicted_class = np.argmax(prediction)
+                confidence = np.max(prediction)
+
+                # Visualizza il risultato sulla ROI
+                cv2.putText(color_image, f"Cuoricini: {predicted_class}, Conf: {confidence:.2f}", (x_min, y_min - 10),
+                            cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2)
+                if predicted_class == 1:  # Se la classe predetta è cuoricini
+                    return True  # Le mani sono sovrapposte al cuore con un cuoricino
             else:
                 return False
 
@@ -296,17 +320,17 @@ def calculate_level(pose_landmarks, w, h, depth_image):
 # OSC Functions
     
 def send_number_bilnders():
-    client.send_message("/blinders", number_to_send_blinders)
+    #client.send_message("/blinders", number_to_send_blinders)
     #client2.send_message("/blinders", number_to_send_blinders)  #raspberry pi
     print(f"Sending a number blinders: {number_to_send_blinders}")
 
 def send_number_lights():
-    client.send_message("/lights", number_to_send_light)
+    #client.send_message("/lights", number_to_send_light)
     #client2.send_message("/lights", number_to_send_light)      #raspberry pi
     print(f"Sending a number light: {number_to_send_light}")
 
 def send_number_fire_machine():
-    client.send_message("/fireMachine", number_to_send_fire_machine)
+    #client.send_message("/fireMachine", number_to_send_fire_machine)
     #client2.send_message("/fireMachine", number_to_send_fire_machine) #raspberry pi
     print(f"Sending a number fire machine: {number_to_send_fire_machine}")
 
@@ -410,6 +434,10 @@ try:
 
 except RuntimeError as e:
     print(f"Errore durante l'acquisizione dei frame: {e}")
+
+finally:
+    print("Stopping pipeline and cleaning up...")
+    pipeline.stop()
 
 pose.close()
 pipeline.stop()
