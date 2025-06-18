@@ -68,7 +68,7 @@ HEART_REGION_TOLERANCE = 0.10  # Tolleranza per la sovrapposizione con il cuore 
 SHOULDER_DISTANCE = 0.45  # Distanza tra le spalle in metri
 ARM_LENGTH = 0.60  # Lunghezza del braccio in metri
 CLOSENESS_WRISTS_TOLERANCE = 0.10  # Tolleranza per la distanza tra i polsi (in percuentuale) quando si fanno i cuoricini
-
+SIDE_FALLBACK_HAND = 160 # px side length of wrist‑centred square
 ## Parametri per il livello TRACKING 3 -- CO2
 
 max_level = 10  # Livello massimo
@@ -113,85 +113,140 @@ def calculate_conversion_distances(p1, p2, right_shoulder, left_shoulder):
 
 
 # Funzione principale per controllare se il braccio destro è alzato e non è alzato il braccio sx --- TRACKING 1
-def is_right_arm_raised(frame, hands, landmarks, w, h):
+def preprocess_hand_roi(hand_roi: np.ndarray, target_size: int = 120) -> np.ndarray:
+    """Return a *target_size*×*target_size* image after local enhancement.
+
+    Steps
+    ------
+    1. Convert ROI to *Lab* → CLAHE on *L* channel for back‑light compensation.
+    2. Mild Gaussian blur to suppress sensor noise.
+    3. *Down‑scale* (never up‑scale) if the larger side exceeds *target_size*.
+    4. Pad with black pixels so the result is exactly (*target_size*, *target_size*).
+    """
+    lab = cv2.cvtColor(hand_roi, cv2.COLOR_BGR2Lab)
+    l, a, b = cv2.split(lab)
+    cl = cv2.createCLAHE(3.0, (8, 8)).apply(l)
+    enhanced = cv2.cvtColor(cv2.merge((cl, a, b)), cv2.COLOR_Lab2BGR)
+    enhanced = cv2.GaussianBlur(enhanced, (3, 3), 0)
+
+    # Increase local contrast (sharpening)
+    sharpen_kernel = np.array([[0, -1, 0],
+                               [-1, 5, -1],
+                               [0, -1, 0]])
+    enhanced = cv2.filter2D(enhanced, -1, sharpen_kernel)
+
+    # Increase saturation
+    hsv = cv2.cvtColor(enhanced, cv2.COLOR_BGR2HSV)
+    h, s, v = cv2.split(hsv)
+    s = cv2.add(s, 40)  # increase saturation, clip at 255
+    s = np.clip(s, 0, 255).astype(hsv.dtype)
+    hsv = cv2.merge([h, s, v])
+    enhanced = cv2.cvtColor(hsv, cv2.COLOR_HSV2BGR)
+    h_roi, w_roi = enhanced.shape[:2]
+    if max(h_roi, w_roi) > target_size:
+        scale = target_size / float(max(h_roi, w_roi))
+        new_w, new_h = int(w_roi * scale), int(h_roi * scale)
+        enhanced = cv2.resize(enhanced, (new_w, new_h), cv2.INTER_AREA)
+        h_roi, w_roi = enhanced.shape[:2]
+
+    dy = target_size - h_roi
+    dx = target_size - w_roi
+    top, bottom = dy // 2, dy - dy // 2
+    left, right = dx // 2, dx - dx // 2
+    padded = cv2.copyMakeBorder(enhanced, top, bottom, left, right, cv2.BORDER_CONSTANT)
+    return padded
+
+# -----------------------------------------------------------------------------
+# Main – detect raised right arm + closed hand
+# -----------------------------------------------------------------------------
+
+def is_right_arm_raised(
+    frame: np.ndarray,
+    hands: mp.solutions.hands.Hands,
+    landmarks: dict,
+    w: int,
+    h: int,
+    model_hand,
+) -> bool:
+    """Return *True* if the right arm is raised *and* the hand is **closed**.
+
+    The function now draws / classifies a hand ROI **even when MediaPipe Hands
+    fails** by falling back to a square around the right wrist.
+    """
     try:
-        # Pre-processing per contrastare il controluce
-        lab = cv2.cvtColor(frame, cv2.COLOR_BGR2Lab)
-        l, a, b = cv2.split(lab)
+        # -------------------------------- Pose inference (raw frame) ---------
+        results = hands.process(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
+        predicted_class = 0  # open by default
 
-        # Applica CLAHE sul canale L
-        clahe = cv2.createCLAHE(clipLimit=3.0, tileGridSize=(8, 8))
-        cl = clahe.apply(l)
+        # ------------- Shoulder / wrist landmarks → pixel coords -------------
+        rs = landmarks[mp_pose.PoseLandmark.RIGHT_SHOULDER]
+        ls = landmarks[mp_pose.PoseLandmark.LEFT_SHOULDER]
+        rw = landmarks[mp_pose.PoseLandmark.RIGHT_WRIST]
+        lw = landmarks[mp_pose.PoseLandmark.LEFT_WRIST]
 
-        # Ricostruisci immagine con canale L equalizzato
-        limg = cv2.merge((cl, a, b))
-        enhanced_frame = cv2.cvtColor(limg, cv2.COLOR_Lab2BGR)
+        rs_xy = np.array([rs.x * w, rs.y * h])
+        ls_xy = np.array([ls.x * w, ls.y * h])
+        rw_xy = np.array([rw.x * w, rw.y * h])
+        lw_xy = np.array([lw.x * w, lw.y * h])
 
-        # Riduzione del rumore (opzionale, utile se molta luce)
-        enhanced_frame = cv2.GaussianBlur(enhanced_frame, (3, 3), 0)
+        # ---------- Check posture condition (right up, left down) ------------
+        if rw_xy[1] < rs_xy[1] and lw_xy[1] > ls_xy[1]:
+            rois = []
+            boxes = []
 
-        # Conversione in RGB per MediaPipe
-        rgb_frame = cv2.cvtColor(enhanced_frame, cv2.COLOR_BGR2RGB)
+            # -- 1) Preferred: bounding boxes from MediaPipe hand landmarks ----
+            if results.multi_hand_landmarks:
+                fh, fw = frame.shape[:2]
+                for hls in results.multi_hand_landmarks:
+                    pts = np.array([(lm.x * fw, lm.y * fh) for lm in hls.landmark])
+                    x_min, y_min = (pts.min(0) - 20).astype(int)
+                    x_max, y_max = (pts.max(0) + 20).astype(int)
 
-        results = hands.process(rgb_frame)
+                    x_min, y_min = max(x_min, 0), max(y_min, 0)
+                    x_max, y_max = min(x_max, fw), min(y_max, fh)
+                    boxes.append((x_min, y_min, x_max, y_max))
+                    rois.append(frame[y_min:y_max, x_min:x_max])
 
-        predicted_class = 0
+            # -- 2) Fallback: square ROI centred on right wrist ----------------
+            if not rois:
+                half = SIDE_FALLBACK_HAND // 4
+                cx, cy = map(int, rw_xy)
+                x_min, y_min = max(cx - half, 0), max(cy - half - 40, 0)
+                x_max, y_max = min(cx + half, w), min(cy + half - 10, h)
+                if x_max - x_min > 10 and y_max - y_min > 10:  # avoid degenerate
+                    boxes.append((x_min, y_min, x_max, y_max))
+                    rois.append(frame[y_min:y_max, x_min:x_max])
 
-        if results.multi_hand_landmarks:
-            for hand_landmarks in results.multi_hand_landmarks:
-                # Ottieni bounding box dai landmark
-                h, w, _ = frame.shape
-                landmark_array = np.array([(lm.x * w, lm.y * h) for lm in hand_landmarks.landmark])
-                x_min = int(np.min(landmark_array[:, 0]) - 20)
-                y_min = int(np.min(landmark_array[:, 1]) - 20)
-                x_max = int(np.max(landmark_array[:, 0]) + 20)
-                y_max = int(np.max(landmark_array[:, 1]) + 20)
+            # --- Classify each ROI (they should all be the same hand) --------
+            for (x_min, y_min, x_max, y_max), roi in zip(boxes, rois):
+                hand_img = preprocess_hand_roi(roi)
+                hand_img = np.expand_dims(img_to_array(hand_img) / 255.0, 0)
+                cv2.imshow("Hand ROI", hand_img[0])
+                cv2.waitKey(1)
+                pred = model_hand.predict(hand_img, verbose=0)
+                cls = int(np.argmax(pred))
+                conf = float(pred.max())
 
-                # Assicurati che i limiti siano validi
-                x_min, y_min = max(x_min, 0), max(y_min, 0)
-                x_max, y_max = min(x_max, w), min(y_max, h)
-
-                hand_img = frame[y_min:y_max, x_min:x_max]
-                hand_img = cv2.resize(hand_img, (120, 120))
-                hand_img = img_to_array(hand_img) / 255.0
-                hand_img = np.expand_dims(hand_img, axis=0)
-
-                # Predizione
-                prediction = model_hand.predict(hand_img)
-                predicted_class = np.argmax(prediction)
-                confidence = np.max(prediction)
-
-                # Disegna bounding box e testo
+                # Draw debug box
                 cv2.rectangle(frame, (x_min, y_min), (x_max, y_max), (0, 255, 0), 2)
-                text = f"Classe: {predicted_class}, Conf: {confidence:.2f}"
-                cv2.putText(frame, text, (x_min, y_min - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (255, 255, 255), 2)
-        else:
-            # Escamotage per evitare errore se non ci sono mani
-            predicted_class = 1
+                cv2.putText(
+                    frame,
+                    f"Class: {cls} Conf: {conf:.2f}",
+                    (x_min, y_min - 10),
+                    cv2.FONT_HERSHEY_SIMPLEX,
+                    0.8,
+                    (255, 255, 255),
+                    2,
+                )
+                predicted_class = max(predicted_class, cls)  # 1 overrides 0
 
-        # Ottieni coordinate di spalla e polso destro
-        right_shoulder = landmarks[mp_pose.PoseLandmark.RIGHT_SHOULDER]
-        left_shoulder = landmarks[mp_pose.PoseLandmark.LEFT_SHOULDER]
-        right_wrist = landmarks[mp_pose.PoseLandmark.RIGHT_WRIST]
-        left_wrist = landmarks[mp_pose.PoseLandmark.LEFT_WRIST]
+        # Return True only if *closed* hand (class 1) detected
+        return predicted_class == 1
 
-        # Converti in pixel
-        right_shoulder_px = [right_shoulder.x * w, right_shoulder.y * h, right_shoulder.z]
-        left_shoulder_px = [left_shoulder.x * w, left_shoulder.y * h, right_shoulder.z]
-        right_wrist_px = [right_wrist.x * w, right_wrist.y * h, right_wrist.z]
-        left_wrist_px = [left_wrist.x * w, left_wrist.y * h, left_wrist.z]
+    except (IndexError, KeyError):
+        # Missing landmarks → treat as negative condition
+        return False
 
-        # Controlla se il polso destro è sopra la spalla destra e il sinistro non è alzato e la mano è chiusa
-        if (
-            right_wrist_px[1] < right_shoulder_px[1]  # Mano destra sopra la spalla
-            and left_wrist_px[1] > left_shoulder_px[1]  # Mano sinistra sotto la spalla
-            and predicted_class == 1  # Predizione della mano chiusa
-        ):
-            return True
-
-    except IndexError:
-        pass
-    return False
 
 
 
@@ -393,7 +448,7 @@ try:
 
             # Verifica se il braccio destro è alzato
                 
-            right_arm_high = is_right_arm_raised(color_image, hands, pose_results.pose_landmarks.landmark, w, h)
+            right_arm_high = is_right_arm_raised(color_image, hands, pose_results.pose_landmarks.landmark, w, h, model_hand)
 
             # Abbassare la frequenza di aggiornamento con contatore perche il modello non è stabile, vigliacca della rospa
             if right_arm_high != right_arm_fixed:
@@ -443,7 +498,7 @@ except RuntimeError as e:
 finally:
     print("Stopping pipeline and cleaning up...")
     pipeline.stop()
+    pose.close()
+    cv2.destroyAllWindows()
 
-pose.close()
-pipeline.stop()
-cv2.destroyAllWindows()
+
