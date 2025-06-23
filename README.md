@@ -26,7 +26,6 @@ Tensorflow 2.19.0 and Keras 3.9.2 is used for the machine learning part. Additio
 * mediapipe 0.10.21
 * numpy 1.26.4
 * pyrealsense2-macosx 2.54.2
-* 
 
 ## Classifiers Architecture
 The two AI model proposed are two netowrks able to recognise two gestures.
