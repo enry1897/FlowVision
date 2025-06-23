@@ -7,512 +7,366 @@ from pythonosc.udp_client import SimpleUDPClient
 from tensorflow.keras.models import load_model
 from tensorflow.keras.preprocessing.image import img_to_array
 
-# Carica il modello AI per mano aperta
+# -----------------------------------------------------------------------------
+# Load ML models
+# -----------------------------------------------------------------------------
 model_hand = load_model('/Users/filippo/Library/CloudStorage/OneDrive-PolitecnicodiMilano/Corsi/Creative Programming and Computing ⌨️/Clone GitHub/FlowVision/Core/ML/modello_Python_aggiornato.h5')
 model_cuoricini = load_model('/Users/filippo/Library/CloudStorage/OneDrive-PolitecnicodiMilano/Corsi/Creative Programming and Computing ⌨️/Clone GitHub/FlowVision/Core/ML/cuoricini_ep_40.h5')
 
-# Inizializza MediaPipe
+# -----------------------------------------------------------------------------
+# Initialise MediaPipe solutions
+# -----------------------------------------------------------------------------
 mp_pose = mp.solutions.pose
 mp_hands = mp.solutions.hands
-pose = mp_pose.Pose(static_image_mode=False, min_detection_confidence=0.5) #forse qua va alzata la confidenza
+pose = mp_pose.Pose(static_image_mode=False, min_detection_confidence=0.5)
 hands = mp_hands.Hands(static_image_mode=False, max_num_hands=1, min_detection_confidence=0.7)
 
-# Inizializza RealSense Pipeline
+# -----------------------------------------------------------------------------
+# Intel RealSense pipeline
+# -----------------------------------------------------------------------------
 pipeline = rs.pipeline()
 config = rs.config()
 config.enable_stream(rs.stream.color, 640, 480, rs.format.rgb8, 30)
 config.enable_stream(rs.stream.depth, 640, 480, rs.format.z16, 30)
 
-# Controllino alè alè
 ctx = rs.context()
-devices = ctx.query_devices()
-if len(devices) == 0:
-    print("No RealSense devices connected.")
-else:
-    print(f"{len(devices)} RealSense device(s) found.")
+print(f"{len(ctx.query_devices())} RealSense device(s) found.")
 
-# Configure OSC Client Address and Port
-ip = "192.168.1.34" #localhost
-ip2 = "192.168.1.19"
-port1 = 8100  #port for processing
+depth_scale = None  # will be filled after pipeline start
 
+# -----------------------------------------------------------------------------
+# OSC configuration
+# -----------------------------------------------------------------------------
+IP_LIGHTS = "192.168.1.34"   # light system
+IP_RPI    = "192.168.1.19"   # raspberry‑pi side
+PORT_OSC  = 8100
 
-# Create OSC Client
-client = SimpleUDPClient(ip, port1)     #light system
-client2 = SimpleUDPClient(ip2, port1)   #raspberry pi
+client_lights = SimpleUDPClient(IP_LIGHTS, PORT_OSC)
+client_rpi    = SimpleUDPClient(IP_RPI,  PORT_OSC)
 
+# -----------------------------------------------------------------------------
+# Hand‑on‑heart (tracking‑2) constants
+# -----------------------------------------------------------------------------
+HEART_REGION_TOLERANCE   = 0.10  # % of image width
+SHOULDER_DISTANCE        = 0.45  # m
+ARM_LENGTH               = 0.60  # m
+CLOSENESS_WRISTS_TOLERANCE = 0.10
+SIDE_FALLBACK_HAND       = 160   # px
 
-# Avvia la pipeline
-def start_pipeline():
-    try:
-        pipeline.start(config)
-        print("Pipeline started successfully.")
-    except Exception as e:
-        print(f"Error starting pipeline: {e}")
-        return False
-    return True
+# Tracking‑3 (CO₂) constants
+MAX_LEVEL              = 10
+ARM_MIN_LENGTH         = 0.45     # m
+HAND_HEIGHT_TOLERANCE  = 0.10     # ~10 cm
+STABILITY_WAIT_TIME    = 1.0      # s
+LEVEL_CHANGE_THRESHOLD = 1
+HYSTERESIS_FRAMES      = 10
 
+# -----------------------------------------------------------------------------
+# Globals for tracking‑3 hysteresis
+# -----------------------------------------------------------------------------
+level          = 0  # current level
+_prev_level    = 0
+_stable_count  = 0
+_last_level    = 0
 
-if not start_pipeline():
-    print("Unable to start pipeline. Exiting...")
-    exit(1)
+# -----------------------------------------------------------------------------
+# Utility helpers
+# -----------------------------------------------------------------------------
 
-depth_scale = pipeline.get_active_profile().get_device().first_depth_sensor().get_depth_scale()
-print(f"Depth Scale: {depth_scale} meters per unit")
-
-### VARIABLES
-
-## Parametri per il rilevamento delle mani sul cuore TRACKING 2 - CUORE
-
-HEART_REGION_TOLERANCE = 0.10  # Tolleranza per la sovrapposizione con il cuore (percentuale della larghezza dell'immagine)
-SHOULDER_DISTANCE = 0.45  # Distanza tra le spalle in metri
-ARM_LENGTH = 0.60  # Lunghezza del braccio in metri
-CLOSENESS_WRISTS_TOLERANCE = 0.10  # Tolleranza per la distanza tra i polsi (in percuentuale) quando si fanno i cuoricini
-SIDE_FALLBACK_HAND = 160 # px side length of wrist‑centred square
-## Parametri per il livello TRACKING 3 -- CO2
-
-max_level = 10  # Livello massimo
-level = 0  # Livello iniziale
-prev_level = 0  # Memorizza il livello precedente per l'isteresi
-# Soglie per validare braccia distese
-ARM_MIN_LENGTH = 0.45  # Lunghezza minima per considerare un braccio disteso (in metri)
-# Tolleranza per la differenza di altezza tra i polsi
-HAND_HEIGHT_TOLERANCE = 0.10  # Tolleranza maggiore, adesso è 10 cm
-# Tempo di attesa iniziale per stabilizzare
-STABILITY_WAIT_TIME = 1.0  # Tempo di attesa in secondi
-# Isteresi per il livello
-LEVEL_CHANGE_THRESHOLD = 1  # La quantità minima di cambiamento per modificare il livello
-HYSTERESIS_FRAMES = 10      # Numero di frame stabili richiesti per cambiare il livello delle mani che si alzano sui lati
-
-##FUNCTIONS
-
-
-# Funzione per calcolare la distanza tra due punti (in pixel)
 def calculate_distance(p1, p2):
-    return np.sqrt((p1[0] - p2[0]) ** 2 + (p1[1] - p2[1]) ** 2)
+    """2‑D Euclidean distance (pixels)."""
+    return np.hypot(p1[0] - p2[0], p1[1] - p2[1])
 
-
-# Funzione per calcolare la distanza in 3D
-def calculate_distance_3d(p1, p2):
-    return np.sqrt((p1[0] - p2[0]) ** 2 + (p1[1] - p2[1]) ** 2 + (p1[2] - p2[2]) ** 2)
-
-
-# Funzione per calcolare la distanza euclidea tra due punti 3D in metri date come riferimento le spalle
 def calculate_conversion_distances(p1, p2, right_shoulder, left_shoulder):
-    shoulder_distance_px = round(
-        np.sqrt((right_shoulder[0] - left_shoulder[0]) ** 2 + (right_shoulder[1] - left_shoulder[1]) ** 2),
-        3)  # distanza spalle in pixel 2D
+    """Return 2‑D distance in **metres** between *p1* / *p2* given pixel reference
+    distance between shoulders and real‑world SHOULDER_DISTANCE."""
+    shoulder_distance_px = np.hypot(right_shoulder[0] - left_shoulder[0],
+                                    right_shoulder[1] - left_shoulder[1])
     conversion_factor = SHOULDER_DISTANCE / shoulder_distance_px
-    # print(f"posizione polso destro x px: {p1[0]}") #Le coordinate sono a posto
-    # print(f"posizione spalla destra x px: {p2[0]}")
-    # print(f"posizione polso destro y px: {p1[1]}")
-    # print(f"posizione spalla destra y px: {p2[1]}")
-    distance_px = np.sqrt((p1[0] - p2[0]) ** 2 + (p1[1] - p2[1]) ** 2)
-    # print(f"distance_px: {distance_px * conversion_factor}")
-    return distance_px * conversion_factor
+    return np.hypot(p1[0] - p2[0], p1[1] - p2[1]) * conversion_factor
 
-
-# Funzione principale per controllare se il braccio destro è alzato e non è alzato il braccio sx --- TRACKING 1
 def preprocess_hand_roi(hand_roi: np.ndarray, target_size: int = 120) -> np.ndarray:
-    """Return a *target_size*×*target_size* image after local enhancement.
-
-    Steps
-    ------
-    1. Convert ROI to *Lab* → CLAHE on *L* channel for back‑light compensation.
-    2. Mild Gaussian blur to suppress sensor noise.
-    3. *Down‑scale* (never up‑scale) if the larger side exceeds *target_size*.
-    4. Pad with black pixels so the result is exactly (*target_size*, *target_size*).
-    """
+    """Enhance ROI locally and pad to *target_size*×*target_size*."""
     lab = cv2.cvtColor(hand_roi, cv2.COLOR_BGR2Lab)
     l, a, b = cv2.split(lab)
     cl = cv2.createCLAHE(3.0, (8, 8)).apply(l)
     enhanced = cv2.cvtColor(cv2.merge((cl, a, b)), cv2.COLOR_Lab2BGR)
     enhanced = cv2.GaussianBlur(enhanced, (3, 3), 0)
 
-    # Increase local contrast (sharpening)
-    sharpen_kernel = np.array([[0, -1, 0],
-                               [-1, 5, -1],
-                               [0, -1, 0]])
+    # Sharpen
+    sharpen_kernel = np.array([[0, -1, 0], [-1, 5, -1], [0, -1, 0]])
     enhanced = cv2.filter2D(enhanced, -1, sharpen_kernel)
 
-    # Increase saturation
+    # Boost saturation
     hsv = cv2.cvtColor(enhanced, cv2.COLOR_BGR2HSV)
     h, s, v = cv2.split(hsv)
-    s = cv2.add(s, 40)  # increase saturation, clip at 255
-    s = np.clip(s, 0, 255).astype(hsv.dtype)
-    hsv = cv2.merge([h, s, v])
-    enhanced = cv2.cvtColor(hsv, cv2.COLOR_HSV2BGR)
+    s = np.clip(cv2.add(s, 40), 0, 255).astype(hsv.dtype)
+    enhanced = cv2.cvtColor(cv2.merge([h, s, v]), cv2.COLOR_HSV2BGR)
+
     h_roi, w_roi = enhanced.shape[:2]
     if max(h_roi, w_roi) > target_size:
         scale = target_size / float(max(h_roi, w_roi))
-        new_w, new_h = int(w_roi * scale), int(h_roi * scale)
-        enhanced = cv2.resize(enhanced, (new_w, new_h), cv2.INTER_AREA)
+        enhanced = cv2.resize(enhanced, (int(w_roi * scale), int(h_roi * scale)), cv2.INTER_AREA)
         h_roi, w_roi = enhanced.shape[:2]
 
-    dy = target_size - h_roi
-    dx = target_size - w_roi
+    dy, dx = target_size - h_roi, target_size - w_roi
     top, bottom = dy // 2, dy - dy // 2
     left, right = dx // 2, dx - dx // 2
-    padded = cv2.copyMakeBorder(enhanced, top, bottom, left, right, cv2.BORDER_CONSTANT)
-    return padded
+    return cv2.copyMakeBorder(enhanced, top, bottom, left, right, cv2.BORDER_CONSTANT)
 
 # -----------------------------------------------------------------------------
-# Main – detect raised right arm + closed hand
+# Core detection helpers
 # -----------------------------------------------------------------------------
 
-def is_right_arm_raised(
-    frame: np.ndarray,
-    hands: mp.solutions.hands.Hands,
-    landmarks: dict,
-    w: int,
-    h: int,
-    model_hand,
-) -> bool:
-    """Return *True* if the right arm is raised *and* the hand is **closed**.
+def is_right_arm_raised(frame: np.ndarray,
+                        hand_detector: mp.solutions.hands.Hands,
+                        landmarks: list,
+                        w: int,
+                        h: int) -> bool:
+    """True if right arm is raised **and** hand is closed."""
+    results = hand_detector.process(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
+    predicted_class = 0  # default = open hand
 
-    The function now draws / classifies a hand ROI **even when MediaPipe Hands
-    fails** by falling back to a square around the right wrist.
-    """
+    rs, ls = landmarks[mp_pose.PoseLandmark.RIGHT_SHOULDER], landmarks[mp_pose.PoseLandmark.LEFT_SHOULDER]
+    rw, lw = landmarks[mp_pose.PoseLandmark.RIGHT_WRIST],   landmarks[mp_pose.PoseLandmark.LEFT_WRIST]
+
+    rs_xy, ls_xy = np.array([rs.x*w, rs.y*h]), np.array([ls.x*w, ls.y*h])
+    rw_xy, lw_xy = np.array([rw.x*w, rw.y*h]), np.array([lw.x*w, lw.y*h])
+
+    # Posture check: right wrist above right shoulder AND left wrist down
+    if rw_xy[1] < rs_xy[1] and lw_xy[1] > ls_xy[1] and 2*rw_xy[1] < lw_xy[1]:
+        rois, boxes = [], []
+
+        # 1) Try MediaPipe Hands boxes
+        if results.multi_hand_landmarks:
+            fh, fw = frame.shape[:2]
+            for hls in results.multi_hand_landmarks:
+                pts = np.array([(lm.x*fw, lm.y*fh) for lm in hls.landmark])
+                x_min, y_min = (pts.min(0) - 20).astype(int)
+                x_max, y_max = (pts.max(0) + 20).astype(int)
+                x_min, y_min = max(x_min,0), max(y_min,0)
+                x_max, y_max = min(x_max,fw), min(y_max,fh)
+                boxes.append((x_min,y_min,x_max,y_max))
+                rois.append(frame[y_min:y_max, x_min:x_max])
+
+        # 2) Fallback: square around right wrist
+        if not rois:
+            half = SIDE_FALLBACK_HAND // 4
+            cx, cy = map(int, rw_xy)
+            x_min, y_min = max(cx - half, 0), max(cy - half - 40, 0)
+            x_max, y_max = min(cx + half, w), min(cy + half - 10, h)
+            if x_max - x_min > 10 and y_max - y_min > 10:
+                boxes.append((x_min,y_min,x_max,y_max))
+                rois.append(frame[y_min:y_max, x_min:x_max])
+
+        # Classify each ROI
+        for (x_min,y_min,x_max,y_max), roi in zip(boxes,rois):
+            hand_img = preprocess_hand_roi(roi)
+            hand_img = np.expand_dims(img_to_array(hand_img)/255.0, 0)
+            pred = model_hand.predict(hand_img, verbose=0)
+            cls = int(np.argmax(pred))
+            conf = float(pred.max())
+            cv2.rectangle(frame, (x_min,y_min), (x_max,y_max), (0,255,0), 2)
+            cv2.putText(frame, f"Class:{cls} Conf:{conf:.2f}", (x_min,y_min-10),
+                        cv2.FONT_HERSHEY_SIMPLEX, .8, (255,255,255), 2)
+            predicted_class = max(predicted_class, cls)
+    return predicted_class == 1  # 1 = closed hand
+
+
+def check_hands_on_heart(pose_landmarks, w, h, color_image):
+    """Return True if both wrists are over the heart region and form a heart‑shape."""
     try:
-        # -------------------------------- Pose inference (raw frame) ---------
-        results = hands.process(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
-        predicted_class = 0  # open by default
+        rs = pose_landmarks[mp_pose.PoseLandmark.RIGHT_SHOULDER]
+        ls = pose_landmarks[mp_pose.PoseLandmark.LEFT_SHOULDER]
+        rw = pose_landmarks[mp_pose.PoseLandmark.RIGHT_WRIST]
+        lw = pose_landmarks[mp_pose.PoseLandmark.LEFT_WRIST]
+        lh = pose_landmarks[mp_pose.PoseLandmark.LEFT_HIP]
 
-        # ------------- Shoulder / wrist landmarks → pixel coords -------------
-        rs = landmarks[mp_pose.PoseLandmark.RIGHT_SHOULDER]
-        ls = landmarks[mp_pose.PoseLandmark.LEFT_SHOULDER]
-        rw = landmarks[mp_pose.PoseLandmark.RIGHT_WRIST]
-        lw = landmarks[mp_pose.PoseLandmark.LEFT_WRIST]
+        if rw.y > rs.y and rw.y < lh.y:
+            heart_x = (rs.x + ls.x) / 2
+            heart_y = rs.y - ((rs.y - lh.y) / 4)
+            heart_px = int(heart_x * w), int(heart_y * h)
 
-        rs_xy = np.array([rs.x * w, rs.y * h])
-        ls_xy = np.array([ls.x * w, ls.y * h])
-        rw_xy = np.array([rw.x * w, rw.y * h])
-        lw_xy = np.array([lw.x * w, lw.y * h])
+            rw_dist = calculate_distance((rw.x*w, rw.y*h), heart_px)
+            lw_dist = calculate_distance((lw.x*w, lw.y*h), heart_px)
 
-        # ---------- Check posture condition (right up, left down) ------------
-        if rw_xy[1] < rs_xy[1] and lw_xy[1] > ls_xy[1] and 2*rw_xy[1] < lw_xy[1]:
-            rois = []
-            boxes = []
+            tol_px = HEART_REGION_TOLERANCE * w
+            if rw_dist < tol_px and lw_dist < tol_px:
+                # Bounding box around wrists
+                pts = np.array([(rw.x*w, rw.y*h), (lw.x*w, lw.y*h)])
+                x_min = int(np.min(pts[:,0]) - 10)
+                y_min = int(np.min(pts[:,1]) - 50)
+                x_max = int(np.max(pts[:,0]) + 10)
+                y_max = int(np.max(pts[:,1]) + 30)
+                x_min, y_min = max(x_min,0), max(y_min,0)
+                x_max, y_max = min(x_max,w), min(y_max,h)
 
-            # -- 1) Preferred: bounding boxes from MediaPipe hand landmarks ----
-            if results.multi_hand_landmarks:
-                fh, fw = frame.shape[:2]
-                for hls in results.multi_hand_landmarks:
-                    pts = np.array([(lm.x * fw, lm.y * fh) for lm in hls.landmark])
-                    x_min, y_min = (pts.min(0) - 20).astype(int)
-                    x_max, y_max = (pts.max(0) + 20).astype(int)
+                roi = color_image[y_min:y_max, x_min:x_max]
+                cv2.rectangle(color_image, (x_min,y_min), (x_max,y_max), (0,0,255), 2)
 
-                    x_min, y_min = max(x_min, 0), max(y_min, 0)
-                    x_max, y_max = min(x_max, fw), min(y_max, fh)
-                    boxes.append((x_min, y_min, x_max, y_max))
-                    rois.append(frame[y_min:y_max, x_min:x_max])
-
-            # -- 2) Fallback: square ROI centred on right wrist ----------------
-            if not rois:
-                half = SIDE_FALLBACK_HAND // 4
-                cx, cy = map(int, rw_xy)
-                x_min, y_min = max(cx - half, 0), max(cy - half - 40, 0)
-                x_max, y_max = min(cx + half, w), min(cy + half - 10, h)
-                if x_max - x_min > 10 and y_max - y_min > 10:  # avoid degenerate
-                    boxes.append((x_min, y_min, x_max, y_max))
-                    rois.append(frame[y_min:y_max, x_min:x_max])
-
-            # --- Classify each ROI (they should all be the same hand) --------
-            for (x_min, y_min, x_max, y_max), roi in zip(boxes, rois):
-                hand_img = preprocess_hand_roi(roi)
-                hand_img = np.expand_dims(img_to_array(hand_img) / 255.0, 0)
-                cv2.imshow("Hand ROI", hand_img[0])
-                cv2.waitKey(1)
-                pred = model_hand.predict(hand_img, verbose=0)
+                roi_resized = cv2.resize(roi, (120,120))
+                roi_arr = np.expand_dims(img_to_array(roi_resized)/255.0, 0)
+                pred = model_cuoricini.predict(roi_arr, verbose=0)
                 cls = int(np.argmax(pred))
-                conf = float(pred.max())
+                conf = float(np.max(pred))
+                cv2.putText(color_image, f"Cuoricini:{cls} Conf:{conf:.2f}",
+                            (x_min, y_min-10), cv2.FONT_HERSHEY_SIMPLEX, .7, (0,0,255), 2)
 
-                # Draw debug box
-                cv2.rectangle(frame, (x_min, y_min), (x_max, y_max), (0, 255, 0), 2)
-                cv2.putText(
-                    frame,
-                    f"Class: {cls} Conf: {conf:.2f}",
-                    (x_min, y_min - 10),
-                    cv2.FONT_HERSHEY_SIMPLEX,
-                    0.8,
-                    (255, 255, 255),
-                    2,
-                )
-                predicted_class = max(predicted_class, cls)  # 1 overrides 0
-
-        # Return True only if *closed* hand (class 1) detected
-        return predicted_class == 1
-
-    except (IndexError, KeyError):
-        # Missing landmarks → treat as negative condition
-        return False
-
-
-
-
-# Funzione per rilevare se le mani sono sovrapposte sul cuore --- TRACKING 2 - CUORE
-def check_hands_on_heart(pose_landmarks, w, h):
-    try:
-        # Coordinate chiave: spalle, polsi
-        right_shoulder = pose_landmarks[mp_pose.PoseLandmark.RIGHT_SHOULDER]
-        left_shoulder = pose_landmarks[mp_pose.PoseLandmark.LEFT_SHOULDER]
-        right_wrist = pose_landmarks[mp_pose.PoseLandmark.RIGHT_WRIST]
-        left_wrist = pose_landmarks[mp_pose.PoseLandmark.LEFT_WRIST]
-        left_hip = pose_landmarks[mp_pose.PoseLandmark.LEFT_HIP]
-
-        if right_wrist.y > right_shoulder.y and right_wrist.y < left_hip.y:
-            # Definiamo la zona del cuore come il centro tra le spalle
-            # print("calcolo cuore")
-            heart_x = (right_shoulder.x + left_shoulder.x) / 2
-            heart_y = (right_shoulder.y) - (
-                        (right_shoulder.y - left_hip.y) / 4)  # Posizione tra le spalle, nella zona del petto
-
-            # Zona del cuore in pixel
-            heart_region = (int(heart_x * w), int(heart_y * h))
-
-            # Calcola la distanza tra le mani e la zona del cuore
-            right_wrist_distance = calculate_distance((right_wrist.x * w, right_wrist.y * h), heart_region)
-            left_wrist_distance = calculate_distance((left_wrist.x * w, left_wrist.y * h), heart_region)
-
-            # Se entrambe le mani sono abbastanza vicine alla zona del cuore, attiviamo una funzione
-            if right_wrist_distance < HEART_REGION_TOLERANCE * w and left_wrist_distance < HEART_REGION_TOLERANCE * w:
-                #Detail control
-                # Ottieni bounding box intorno alle mani
-                landmark_array = np.array([
-                    (pose_landmarks[mp_pose.PoseLandmark.RIGHT_WRIST].x * w, pose_landmarks[mp_pose.PoseLandmark.RIGHT_WRIST].y * h),
-                    (pose_landmarks[mp_pose.PoseLandmark.LEFT_WRIST].x * w, pose_landmarks[mp_pose.PoseLandmark.LEFT_WRIST].y * h)
-                ])
-                x_min = int(np.min(landmark_array[:, 0]) - 10)
-                y_min = int(np.min(landmark_array[:, 1]) - 50)
-                x_max = int(np.max(landmark_array[:, 0]) + 10)
-                y_max = int(np.max(landmark_array[:, 1]) + 30)
-
-                x_min, y_min = max(x_min, 0), max(y_min, 0)
-                x_max, y_max = min(x_max, w), min(y_max, h)
-
-                cropped_hands = color_image[y_min:y_max, x_min:x_max]
-                cv2.rectangle(color_image, (x_min, y_min), (x_max, y_max), (0, 0, 255), 2)
-                # Prepara l'immagine per il modello cuoricini
-                cropped_hands_resized = cv2.resize(cropped_hands, (120, 120))
-                cropped_hands_array = img_to_array(cropped_hands_resized) / 255.0
-                cropped_hands_array = np.expand_dims(cropped_hands_array, axis=0)
-
-                # Esegui la predizione
-                prediction = model_cuoricini.predict(cropped_hands_array)
-                predicted_class = np.argmax(prediction)
-                confidence = np.max(prediction)
-
-                # Visualizza il risultato sulla ROI
-                cv2.putText(color_image, f"Cuoricini: {predicted_class}, Conf: {confidence:.2f}", (x_min, y_min - 10),
-                            cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2)
-                distance_between_wrists = calculate_distance(
-                    (right_wrist.x * w, right_wrist.y * h),
-                    (left_wrist.x * w, left_wrist.y * h)
-                )
-                if (predicted_class == 1) and (distance_between_wrists > CLOSENESS_WRISTS_TOLERANCE * w):  # Se la classe predetta è cuoricini
-                    return True  # Le mani sono sovrapposte al cuore con un cuoricino
-            else:
-                return False
-
+                wrist_dist = calculate_distance((rw.x*w, rw.y*h), (lw.x*w, lw.y*h))
+                if cls == 1 and wrist_dist > CLOSENESS_WRISTS_TOLERANCE * w:
+                    return True
     except IndexError:
         pass
     return False
 
 
-# Funzione per calcolare il livello proporzionale --- TRACKING 3 -- CO2
-# Global variables for hysteresis state in calculate_level
-stable_counter = 0
-last_level = 0
+def calculate_level(pose_landmarks, w, h):
+    """Update global *level* based on hand height (tracking‑3)."""
+    global level, _prev_level, _stable_count, _last_level
 
-def calculate_level(pose_landmarks, w, h, depth_image):
-    global level, prev_level, stable_counter, last_level
     try:
-        # Coordinate chiave: spalle, anche, polsi
-        right_shoulder = pose_landmarks[mp_pose.PoseLandmark.RIGHT_SHOULDER]
-        left_shoulder = pose_landmarks[mp_pose.PoseLandmark.LEFT_SHOULDER]
-        right_hip = pose_landmarks[mp_pose.PoseLandmark.RIGHT_HIP]
-        left_hip = pose_landmarks[mp_pose.PoseLandmark.LEFT_HIP]
-        right_wrist = pose_landmarks[mp_pose.PoseLandmark.RIGHT_WRIST]
-        left_wrist = pose_landmarks[mp_pose.PoseLandmark.LEFT_WRIST]
+        rs = pose_landmarks[mp_pose.PoseLandmark.RIGHT_SHOULDER]
+        ls = pose_landmarks[mp_pose.PoseLandmark.LEFT_SHOULDER]
+        rh = pose_landmarks[mp_pose.PoseLandmark.RIGHT_HIP]
+        lh = pose_landmarks[mp_pose.PoseLandmark.LEFT_HIP]
+        rw = pose_landmarks[mp_pose.PoseLandmark.RIGHT_WRIST]
+        lw = pose_landmarks[mp_pose.PoseLandmark.LEFT_WRIST]
 
-        # Converti in pixel
-        right_shoulder_px = (int(right_shoulder.x * w), int(right_shoulder.y * h))
-        left_shoulder_px = (int(left_shoulder.x * w), int(left_shoulder.y * h))
-        right_wrist_px = (int(right_wrist.x * w), int(right_wrist.y * h))
-        left_wrist_px = (int(left_wrist.x * w), int(left_wrist.y * h))
+        rs_px, ls_px = (int(rs.x*w), int(rs.y*h)), (int(ls.x*w), int(ls.y*h))
+        rw_px, lw_px = (int(rw.x*w), int(rw.y*h)), (int(lw.x*w), int(lw.y*h))
 
-        # Calcola la distanza 2D tra spalla e polso
-        right_arm_length = calculate_conversion_distances(right_wrist_px, right_shoulder_px, right_shoulder_px, left_shoulder_px)
-        left_arm_length = calculate_conversion_distances(left_wrist_px, left_shoulder_px, right_shoulder_px, left_shoulder_px)
-
-        # Verifica che entrambe le braccia siano distese
-        if right_arm_length < ARM_LENGTH or left_arm_length < ARM_LENGTH:
+        r_arm_len = calculate_conversion_distances(rw_px, rs_px, rs_px, ls_px)
+        l_arm_len = calculate_conversion_distances(lw_px, ls_px, rs_px, ls_px)
+        if r_arm_len < ARM_LENGTH or l_arm_len < ARM_LENGTH:
             level = 0
-            print("Braccia non distese")
             return
 
-        # Altezza media delle mani
-        avg_hand_height = (right_wrist.y + left_wrist.y) / 2
+        avg_hand_y = (rw.y + lw.y) / 2
+        avg_sh_y   = (rs.y + ls.y) / 2
+        wrist_diff = abs(rw.y - lw.y)
+        upper_lim  = avg_sh_y + 0.10
+        lower_lim  = (rh.y + lh.y) / 2
 
-        # Altezza media delle spalle
-        avg_shoulder_height = (right_shoulder.y + left_shoulder.y) / 2
-
-        # Calcolo della differenza di altezza tra i polsi
-        wrist_height_diff = abs(right_wrist.y - left_wrist.y)
-
-        # Limiti: tra le spalle (alto) e le anche (basso)
-        upper_limit = avg_shoulder_height+ 0.10  # Aggiungi un offset per evitare che il livello sia troppo alto
-        lower_limit = (right_hip.y + left_hip.y) / 2
-
-        # Condizioni per aumentare il livello
-        if (
-            right_wrist.y < lower_limit and left_wrist.y < lower_limit
-            and wrist_height_diff < HAND_HEIGHT_TOLERANCE
-        ):  # Entrambe le mani sopra le anche
-            # Normalizza tra spalle (livello max) e anche (livello min)
-            normalized_height = (lower_limit - avg_hand_height) / (lower_limit - upper_limit)
-            normalized_height = np.clip(normalized_height, 0, 1)
-            new_level = min(int(normalized_height * max_level), max_level)  # Mappa a livello tra 0 e max_level
+        if rw.y < lower_lim and lw.y < lower_lim and wrist_diff < HAND_HEIGHT_TOLERANCE:
+            norm_h = np.clip((lower_lim - avg_hand_y) / (lower_lim - upper_lim), 0, 1)
+            new_level = min(int(norm_h * MAX_LEVEL), MAX_LEVEL)
         else:
-            # Se le mani non soddisfano i criteri, resetta il livello
             new_level = 0
 
-        # Hysteresis: only update level if new_level is stable for N frames
-        # or if the change is significant
-        if new_level == last_level:
-            stable_counter += 1
+        if new_level == _last_level:
+            _stable_count += 1
         else:
-            stable_counter = 1
-            last_level = new_level
+            _stable_count = 1
+            _last_level = new_level
 
-        # Only update if stable for enough frames or big jump
-        if abs(new_level - prev_level) >= LEVEL_CHANGE_THRESHOLD and stable_counter >= HYSTERESIS_FRAMES:
+        if abs(new_level - _prev_level) >= LEVEL_CHANGE_THRESHOLD and _stable_count >= HYSTERESIS_FRAMES:
             level = new_level
-            prev_level = level
-
+            _prev_level = level
     except IndexError:
         pass
 
+# -----------------------------------------------------------------------------
+# OSC send helpers (no hidden globals)
+# -----------------------------------------------------------------------------
 
-# OSC Functions
-    
-def send_number_bilnders():
-    client.send_message("/blinders", number_to_send_blinders)
-    client2.send_message("/blinders", number_to_send_blinders)  #raspberry pi
-    print(f"Sending a number blinders: {number_to_send_blinders}")
-
-def send_number_lights():
-    client.send_message("/lights", number_to_send_light)
-    client2.send_message("/lights", number_to_send_light)      #raspberry pi
-    print(f"Sending a number light: {number_to_send_light}")
-
-def send_number_fire_machine():
-    client.send_message("/fireMachine", number_to_send_fire_machine*10) # 0-100 range for fire machine
-    client2.send_message("/fireMachine", number_to_send_fire_machine) #raspberry pi
-    print(f"Sending a number fire machine: {number_to_send_fire_machine}")
+def send_number_blinders(value: int):
+    client_lights.send_message("/blinders", value)
+    client_rpi.send_message("/blinders", value)
+    print(f"→ /blinders {value}")
 
 
+def send_number_lights(value: int):
+    client_lights.send_message("/lights", value)
+    client_rpi.send_message("/lights", value)
+    print(f"→ /lights {value}")
 
-# MAIN LOOP
-try:
-    initial_time = time.time()  # Tempo di inizio
-    contatore_arm = 0
-    sample_every = 5  # aggiorna ogni 10 iterazioni
+
+def send_number_fire_machine(value: int):
+    client_lights.send_message("/fireMachine", value*10)  # 0‑100 for lights
+    client_rpi.send_message("/fireMachine", value)        # raw 0‑10 for RPi
+    print(f"→ /fireMachine {value}")
+
+# -----------------------------------------------------------------------------
+# Main loop
+# -----------------------------------------------------------------------------
+
+def start_pipeline() -> bool:
+    try:
+        pipeline.start(config)
+        global depth_scale
+        depth_scale = pipeline.get_active_profile().get_device().first_depth_sensor().get_depth_scale()
+        print(f"Pipeline started (depth scale {depth_scale:.4f} m/unit)")
+        return True
+    except Exception as e:
+        print(f"Error starting pipeline: {e}")
+        return False
+
+
+def run():
+    if not start_pipeline():
+        return
+
+    init_time = time.time()
     right_arm_fixed = False
-    while True:
-        # Cattura i frame di colore e profondità
-        frames = pipeline.wait_for_frames()
-        color_frame = frames.get_color_frame()
-        depth_frame = frames.get_depth_frame()
+    counter_arm = 0
+    SAMPLE_EVERY = 5
 
-        if not color_frame or not depth_frame:
-            continue
+    try:
+        while True:
+            frames = pipeline.wait_for_frames()
+            color_frame = frames.get_color_frame()
+            depth_frame = frames.get_depth_frame()
+            if not color_frame or not depth_frame:
+                continue
 
-        # Converti i frame in formati utilizzabili
-        color_image = np.asanyarray(color_frame.get_data())
-        color_image = cv2.cvtColor(color_image, cv2.COLOR_RGB2BGR)
-        depth_image = np.asanyarray(depth_frame.get_data())
-        h, w, _ = color_image.shape
+            color_image = cv2.cvtColor(np.asanyarray(color_frame.get_data()), cv2.COLOR_RGB2BGR)
+            depth_image = np.asanyarray(depth_frame.get_data())  # kept if you need depth later
+            h, w, _ = color_image.shape
 
-        # Passa il frame di colore a MediaPipe
-        rgb_image = cv2.cvtColor(color_image, cv2.COLOR_BGR2RGB)
-        pose_results = pose.process(rgb_image)
+            pose_results = pose.process(cv2.cvtColor(color_image, cv2.COLOR_BGR2RGB))
+            if pose_results.pose_landmarks:
+                mp.solutions.drawing_utils.draw_landmarks(color_image, pose_results.pose_landmarks, mp_pose.POSE_CONNECTIONS)
 
-        # Disegna lo skeleton tracking e controlla il braccio destro
-        if pose_results.pose_landmarks:
-            mp.solutions.drawing_utils.draw_landmarks(
-                color_image, pose_results.pose_landmarks, mp_pose.POSE_CONNECTIONS)
+                # ---------- Tracking‑2 (heart) ----------
+                heart = int(check_hands_on_heart(pose_results.pose_landmarks.landmark, w, h, color_image))
+                send_number_lights(heart)
 
-            heart = 0
-            # Controlla se le mani sono sovrapposte al cuore
-            if check_hands_on_heart(pose_results.pose_landmarks.landmark, w, h):
-                # Mostra il messaggio se le mani sono sovrapposte al cuore
-                heart = 1
-                cv2.putText(color_image, "Hands on Heart Detected!", (w - 420, 50),
-                            cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
-            
-            number_to_send_light = heart
-            send_number_lights()
-            print(f"heart: {heart}")
+                # ---------- Tracking‑1 (right arm raised) ----------
+                right_arm_high = is_right_arm_raised(color_image, hands, pose_results.pose_landmarks.landmark, w, h)
 
-            # Controlla se il braccio destro è alzato e braccio sx abbassato
-            landmarks = pose_results.pose_landmarks.landmark
+                if right_arm_high != right_arm_fixed:
+                    counter_arm += 1
+                    if counter_arm >= SAMPLE_EVERY:
+                        right_arm_fixed = right_arm_high
+                        counter_arm = 0
 
-            right_arm_high = 0
+                send_number_blinders(int(right_arm_fixed))
 
-            # Verifica se il braccio destro è alzato
-                
-            right_arm_high = is_right_arm_raised(color_image, hands, pose_results.pose_landmarks.landmark, w, h, model_hand)
+                # ---------- Tracking‑3 (CO₂ level) ----------
+                if not right_arm_high and time.time() - init_time > STABILITY_WAIT_TIME:
+                    calculate_level(pose_results.pose_landmarks.landmark, w, h)
 
-            # Abbassare la frequenza di aggiornamento con contatore perche il modello non è stabile, vigliacca della rospa
-            if right_arm_high != right_arm_fixed:
-                contatore_arm += 1
-                if contatore_arm >= sample_every:
-                    right_arm_fixed = right_arm_high
-                    contatore_arm = 0  # resetta il contatore
-            
-            if right_arm_fixed:
-                print("Funzione attivata: braccio destro alzato!")
-                cv2.putText(color_image, "Right arm raised!", (w - 300, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
-                right_arm_high = 1
-                
-            number_to_send_blinders = int(right_arm_high)
-            send_number_bilnders()
-            print(f"right_arm_high: {right_arm_high}")
+                send_number_fire_machine(level)
+
+            # HUD
+            cv2.putText(color_image, f"Level:{level}", (50,50), cv2.FONT_HERSHEY_SIMPLEX,1,
+                        (0,255,0) if level == MAX_LEVEL else (0,0,255), 2)
+            if level == MAX_LEVEL:
+                cv2.putText(color_image, "Max Level Reached!", (50,100), cv2.FONT_HERSHEY_SIMPLEX,1,(0,255,0),2)
+
+            cv2.imshow("Hand & Body Tracking", color_image)
+            if cv2.waitKey(1) & 0xFF == ord('q'):
+                break
+    except RuntimeError as e:
+        print(f"Runtime error: {e}")
+    finally:
+        print("Stopping pipeline…")
+        pipeline.stop()
+        pose.close()
+        cv2.destroyAllWindows()
 
 
-            # Calcola il livello solo se il braccio destro non è alzato --- TRACKING 3 -- CO2
-            if not right_arm_high and time.time() - initial_time > STABILITY_WAIT_TIME:
-                calculate_level(pose_results.pose_landmarks.landmark, w, h, depth_image)
-            
-            number_to_send_fire_machine = level
-            send_number_fire_machine()
-
-           
-
-        # Mostra livello e stato --- TRACKING 3 -- CO2
-
-        cv2.putText(color_image, f"Level: {level}", (50, 50),
-                    cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0) if level == max_level else (0, 0, 255), 2)
-
-        if level == max_level:
-            cv2.putText(color_image, "Max Level Reached!", (50, 100),
-                        cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
-
-            # Mostra l'immagine risultante
-        cv2.imshow("Hand and Body Tracking Detection", color_image)
-
-        if cv2.waitKey(1) & 0xFF == ord('q'):
-            break
-
-
-except RuntimeError as e:
-    print(f"Errore durante l'acquisizione dei frame: {e}")
-
-finally:
-    print("Stopping pipeline and cleaning up...")
-    pipeline.stop()
-    pose.close()
-    cv2.destroyAllWindows()
+#if __name__ == "__main__":
+#    run()
 
 
