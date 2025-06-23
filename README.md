@@ -18,11 +18,15 @@
 The main claim of our project is to create a system that allow people with visual impairments to control stage effects consciously. We use a camera to detect performers' gestures by using a machine learning algorithm to easily perform it. Then we send OSC messages to comunicate with RaspberryPi to controll a feedback glove that vibrate in different way according to the type of data that we have detected. Last step we comunicate with lights and other stage machine in order to obtain the desirable effect.
 
 ### Jupyter environment
-Python --- has been used to run notebook.
-Tensorflow --- is used for the machine learning part. Additionally, following libraries were also installed for some specific audio-processing tasks:
+Python 3.12.10 has been used to run notebooks and model.
+Tensorflow 2.19.0 and Keras 3.9.2 is used for the machine learning part. Additionally, following libraries were also installed for some specific audio-processing tasks:
 
-* Librosa ---
-* Scikit-learn ---
+* h5py 3.13.0    
+* imageio 2.37.0
+* mediapipe 0.10.21
+* numpy 1.26.4
+* pyrealsense2-macosx 2.54.2
+* 
 
 ## Classifiers Architecture
 The two AI model proposed are two netowrks able to recognise two gestures.
