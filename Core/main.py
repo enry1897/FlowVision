@@ -342,7 +342,7 @@ def run():
 
                 send_number_blinders(int(right_arm_fixed))
 
-                # ---------- Tracking‑3 (CO₂ level) ----------
+                # ---------- Tracking‑3 (arm level) ----------
                 if not right_arm_high and time.time() - init_time > STABILITY_WAIT_TIME:
                     calculate_level(pose_results.pose_landmarks.landmark, w, h)
 
