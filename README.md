@@ -13,16 +13,6 @@
 
 - ####  Filippo Marri &nbsp;([@filippomarri](https://github.com/filippomarri))<br> 10110508 &nbsp;&nbsp; filippo.marri@mail.polimi.it
 
-## Checklist
-
-### Macrotasks
-1.	Generazione delle reti neurali per riconoscimento gesti (completate 1/3) 🔄
-2.	Sistema hardware (manca solo da fare il guanto) 🔄
-3.	Implementazione codice gestione hardware ✅
-4.	Implementazione codice comunicazione wi-fi ✅
-5.	Implementazione main 
-6.  Implementazione eventuale interfaccia
-
 
 ## Project description
 The main claim of our project is to create a system that allow people with visual impairments to control stage effects consciously. We use a camera to detect performers' gestures by using a machine learning algorithm to easily perform it. Then we send OSC messages to comunicate with RaspberryPi to controll a feedback glove that vibrate in different way according to the type of data that we have detected. Last step we comunicate with lights and other stage machine in order to obtain the desirable effect.
@@ -35,10 +25,20 @@ Tensorflow --- is used for the machine learning part. Additionally, following li
 * Scikit-learn ---
 
 ## Classifiers Architecture
-The two AI model proposed 
+The two AI model proposed are two netowrks able to recognise two gestures.
 
+ - **Fist gesture**: this network is implemented following a transfer learning approach. The original network adapted is MobileNet. Since the image given as input to this model have different backgrounds, a high number of parameters is required.
+
+  - **Heart gesture**: this network is implemented following a transfer learning approach. The original network adapted is MobileNet. Since the image given as input to this model have simpler backgrounds with respect to the previous one, less parameters are required.
+
+Below, the two architectures are reported.
+<p align="center">
+    <img src="Deliveries/Architectures.png" alt="alt text">
+</p>
 
 ## Repository structure and file list
 - *Auxiliar*:
     in this fold, the jupyter notebooks to train the neural networks are reported
-    >[Fist_Neural_Nets_Project](Auxiliar/Fist_Neural_Nets_Project.ipynb.ipynb)
+    >[Fist_Neural_Net](Auxiliar/Fist_Neural_Net.ipynb)
+
+    >[Heart_Neural_Net](Auxiliar/Heart_Neural_Net.ipynb)
