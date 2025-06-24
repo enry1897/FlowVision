@@ -210,6 +210,7 @@ def check_hands_on_heart(pose_landmarks, w, h, color_image):
                 pred = model_cuoricini.predict(roi_arr, verbose=0)
                 cls = int(np.argmax(pred))
                 conf = float(np.max(pred))
+                print(f"Cuoricini class: {cls}, conf: {conf:.2f}")
                 cv2.putText(color_image, f"Cuoricini:{cls} Conf:{conf:.2f}",
                             (x_min, y_min-10), cv2.FONT_HERSHEY_SIMPLEX, .7, (0,0,255), 2)
 
