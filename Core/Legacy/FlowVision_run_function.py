@@ -236,13 +236,13 @@ def send_number_fire_machine():
     print(f"Sending a number fire machine: {number_to_send_fire_machine}")
 
 
-def run():
+def run(stop_event):
     global number_to_send_light, number_to_send_blinders, number_to_send_fire_machine
     global level
 
     try:
         initial_time = time.time()  # Tempo di inizio
-        while True:
+        while not stop_event.is_set():
             # Cattura i frame di colore e profondità
             frames = pipeline.wait_for_frames()
             color_frame = frames.get_color_frame()
