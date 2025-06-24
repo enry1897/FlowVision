@@ -75,7 +75,11 @@ def run(stop_event):
                 rw_dist = calculate_distance((rw.x * w, rw.y * h), heart_region)
                 lw_dist = calculate_distance((lw.x * w, lw.y * h), heart_region)
                 return rw_dist < HEART_REGION_TOLERANCE * w and lw_dist < HEART_REGION_TOLERANCE * w
+            return False  # se nessuna condizione è soddisfatta
         except IndexError:
+            return False
+        except Exception as e:
+            print(f"Errore in check_hands_on_heart: {e}")
             return False
 
     def calculate_level(landmarks, w, h):
