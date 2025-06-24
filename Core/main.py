@@ -6,12 +6,13 @@ import time
 from pythonosc.udp_client import SimpleUDPClient
 from tensorflow.keras.models import load_model
 from tensorflow.keras.preprocessing.image import img_to_array
+import threading
 
 # -----------------------------------------------------------------------------
 # Load ML models
 # -----------------------------------------------------------------------------
-model_hand = load_model('/Users/filippo/Library/CloudStorage/OneDrive-PolitecnicodiMilano/Corsi/Creative Programming and Computing ⌨️/Clone GitHub/FlowVision/Core/ML/modello_Python_aggiornato.h5')
-model_cuoricini = load_model('/Users/filippo/Library/CloudStorage/OneDrive-PolitecnicodiMilano/Corsi/Creative Programming and Computing ⌨️/Clone GitHub/FlowVision/Core/ML/cuoricini_ep_40.h5')
+model_hand = load_model('ML/modello_Python_aggiornato.h5')
+model_cuoricini = load_model('ML/cuoricini_ep_40.h5')
 
 # -----------------------------------------------------------------------------
 # Initialise MediaPipe solutions
@@ -56,7 +57,7 @@ SIDE_FALLBACK_HAND       = 160   # px
 # Tracking‑3 (CO₂) constants
 MAX_LEVEL              = 10
 ARM_MIN_LENGTH         = 0.45     # m
-HAND_HEIGHT_TOLERANCE  = 0.10     # ~10 cm
+HAND_HEIGHT_TOLERANCE  = 0.10     # ~10 cm
 STABILITY_WAIT_TIME    = 1.0      # s
 LEVEL_CHANGE_THRESHOLD = 1
 HYSTERESIS_FRAMES      = 10
@@ -295,14 +296,15 @@ def start_pipeline() -> bool:
         pipeline.start(config)
         global depth_scale
         depth_scale = pipeline.get_active_profile().get_device().first_depth_sensor().get_depth_scale()
-        print(f"Pipeline started (depth scale {depth_scale:.4f} m/unit)")
+        print(f"Pipeline started (depth scale {depth_scale:.4f} m/unit)")
         return True
     except Exception as e:
         print(f"Error starting pipeline: {e}")
         return False
 
 
-def run():
+# Modifica qui: aggiungi stop_event come parametro
+def run(stop_event: threading.Event):
     if not start_pipeline():
         return
 
@@ -313,6 +315,11 @@ def run():
 
     try:
         while True:
+            # Aggiungi questa riga per controllare se l'evento di stop è stato settato
+            if stop_event.is_set():
+                print("Segnale di stop ricevuto, terminazione di main.py...")
+                break
+
             frames = pipeline.wait_for_frames()
             color_frame = frames.get_color_frame()
             depth_frame = frames.get_depth_frame()
@@ -355,6 +362,7 @@ def run():
                 cv2.putText(color_image, "Max Level Reached!", (50,100), cv2.FONT_HERSHEY_SIMPLEX,1,(0,255,0),2)
 
             cv2.imshow("Hand & Body Tracking", color_image)
+            # Modifica qui: aggiungi un timeout a waitKey per permettere al thread di controllare l'evento di stop
             if cv2.waitKey(1) & 0xFF == ord('q'):
                 break
     except RuntimeError as e:
@@ -363,10 +371,6 @@ def run():
         print("Stopping pipeline…")
         pipeline.stop()
         pose.close()
+        hands.close() # Aggiungi la chiusura delle mani
         cv2.destroyAllWindows()
-
-
-#if __name__ == "__main__":
-#    run()
-
 
