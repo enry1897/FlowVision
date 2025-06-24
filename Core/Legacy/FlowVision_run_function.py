@@ -172,8 +172,15 @@ def run(stop_event):
                 if level == max_level:
                     cv2.putText(color_image, "Max Level Reached!", (50, 100),
                                 cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
-
-            cv2.imshow("Hand and Body Tracking Detection", color_image)
+            try:
+                if color_image is not None and color_image.size != 0:
+                    cv2.imshow("Hand and Body Tracking Detection", color_image)
+                    if cv2.waitKey(1) & 0xFF == ord('q'):
+                        break
+            except cv2.error as e:
+                print("OpenCV error during display:", e)
+                break
+            
             if cv2.waitKey(1) & 0xFF == ord('q'):
                 break
 
