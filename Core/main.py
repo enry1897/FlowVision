@@ -361,10 +361,10 @@ def run(stop_event: threading.Event):
             if level == MAX_LEVEL:
                 cv2.putText(color_image, "Max Level Reached!", (50,100), cv2.FONT_HERSHEY_SIMPLEX,1,(0,255,0),2)
 
-            cv2.imshow("Hand & Body Tracking", color_image)
+            #cv2.imshow("Hand & Body Tracking", color_image)
             # Modifica qui: aggiungi un timeout a waitKey per permettere al thread di controllare l'evento di stop
-            if cv2.waitKey(1) & 0xFF == ord('q'):
-                break
+            # if cv2.waitKey(1) & 0xFF == ord('q'):
+            #     break
     except RuntimeError as e:
         print(f"Runtime error: {e}")
     finally:
