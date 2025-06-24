@@ -11,5 +11,6 @@ RUN apt-get update && apt-get install ffmpeg libsm6 libxext6 -y
 COPY . .
 
 EXPOSE 7700
+EXPOSE 7701
 
-CMD ["python3","-u","main.py"]
+CMD ["python3","-u","app.py"]
