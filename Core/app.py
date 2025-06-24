@@ -1,18 +1,19 @@
-from flask import Flask, render_template_string, redirect, url_for, request, session
+from flask import Flask, render_template_string, redirect, url_for, request, session, Response
 import main 
 import threading
 import time
+import queue # Importa il modulo queue
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'una_chiave_molto_segreta' 
 
 # Variabili globali per tracciare lo stato dello script e il thread
-# Queste devono essere accessibili da diverse richieste.
 running_script_thread = None
 script_stop_event = threading.Event() # L'evento per segnalare l'interruzione
-
-# Non mostreremo l'output dello script, ma manterremo lo stato del bottone
 script_is_active = False # Indica se c'è un processo di script "logicamente" in esecuzione
+
+# Coda per i frame video
+frame_queue = queue.Queue(maxsize=2) # Una coda di dimensioni ridotte per non accumulare troppi frame vecchi
 
 TEMPLATE = """
 <!doctype html>
@@ -35,7 +36,7 @@ TEMPLATE = """
         padding: 40px;
         border-radius: 8px;
         box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-        max-width: 600px;
+        max-width: 800px; /* Aumentato per il video */
         width: 90%;
     }
     h2 {
@@ -51,6 +52,7 @@ TEMPLATE = """
         transition: background-color 0.3s ease, transform 0.2s ease;
         background-color: #007bff; 
         color: white;
+        margin-bottom: 20px; /* Spazio sotto il bottone */
     }
     button:hover {
         background-color: #0056b3; 
@@ -64,6 +66,13 @@ TEMPLATE = """
         margin-top: 15px;
         font-size: 1.1em;
     }
+    #video_feed {
+        width: 100%; /* Rende l'immagine responsiva */
+        max-width: 640px; /* Larghezza massima come il frame della camera */
+        height: auto;
+        border: 2px solid #ddd;
+        margin-top: 20px;
+    }
 </style>
 <div class="container">
     <h2>Flow Vision</h2>
@@ -75,6 +84,13 @@ TEMPLATE = """
     {% endif %}
     {% if error %}
         <p style="color: red;">{{ error}}</p>
+    {% endif %}
+
+    {% if script_is_active %}
+        <h3>Feed Video in diretta:</h3>
+        <img id="video_feed" src="{{ url_for('video_feed') }}">
+    {% else %}
+        <p>Avvia lo script per vedere il feed video.</p>
     {% endif %}
 </div>
 
@@ -123,7 +139,7 @@ def home():
 
 @app.route("/toggle_script", methods=["POST"])
 def toggle_script():
-    global script_is_active, running_script_thread, script_stop_event
+    global script_is_active, running_script_thread, script_stop_event, frame_queue
 
     if script_is_active: # Se il bottone dice "Interrompi" e lo script è attivo
         # Segnala al thread di fermarsi
@@ -139,6 +155,13 @@ def toggle_script():
             else:
                 print("Il thread dello script è stato terminato.")
 
+        # Svuota la coda quando lo script viene fermato
+        while not frame_queue.empty():
+            try:
+                frame_queue.get_nowait()
+            except queue.Empty:
+                break
+        
         session['reset_requested'] = True # Richiedi il reset della pagina
         script_is_active = False # Aggiorna lo stato logico
         
@@ -148,8 +171,8 @@ def toggle_script():
         script_stop_event.clear() 
 
         # Avvia il thread dello script
-        # Modifica qui: passa script_stop_event come argomento alla funzione run
-        running_script_thread = threading.Thread(target=main.run, args=(script_stop_event,))
+        # Modifica qui: passa script_stop_event E frame_queue come argomenti alla funzione run
+        running_script_thread = threading.Thread(target=main.run, args=(script_stop_event, frame_queue))
         running_script_thread.daemon = True # Il thread si chiude quando l'app Flask si chiude
         running_script_thread.start()
         
@@ -157,8 +180,30 @@ def toggle_script():
 
         print("Script avviato in un thread separato.")
         # Reindirizza immediatamente alla home.
-        # L'output dello script non viene più passato tramite URL perché non lo mostriamo.
         return redirect(url_for("home", message="Script avviato. Puoi interromperlo cliccando di nuovo."))
+
+
+# Funzione generatore per lo stream video
+def generate_frames():
+    while True:
+        try:
+            # Tenta di ottenere un frame dalla coda. Timeout di 1 secondo per non bloccare indefinitamente.
+            frame = frame_queue.get(timeout=1) 
+            yield (b'--frame\r\n'
+                   b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n')
+        except queue.Empty:
+            # Se la coda è vuota, aspetta un po' prima di riprovare.
+            time.sleep(0.1) 
+        except Exception as e:
+            print(f"Errore durante la generazione dei frame: {e}")
+            break # Esci dal loop in caso di errore
+
+@app.route("/video_feed")
+def video_feed():
+    # Solo se lo script è attivo, altrimenti non ha senso fornire un feed
+    if script_is_active:
+        return Response(generate_frames(), mimetype='multipart/x-mixed-replace; boundary=frame')
+    return "Video feed non disponibile. Avvia lo script."
 
 if __name__== "__main__":
     app.run(host="0.0.0.0", port=7700, debug=True, use_reloader=False)

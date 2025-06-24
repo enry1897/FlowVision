@@ -7,6 +7,7 @@ from pythonosc.udp_client import SimpleUDPClient
 from tensorflow.keras.models import load_model
 from tensorflow.keras.preprocessing.image import img_to_array
 import threading
+import queue # Importa il modulo queue
 
 # -----------------------------------------------------------------------------
 # Load ML models
@@ -133,6 +134,7 @@ def is_right_arm_raised(frame: np.ndarray,
 
     rs_xy, ls_xy = np.array([rs.x*w, rs.y*h]), np.array([ls.x*w, ls.y*h])
     rw_xy, lw_xy = np.array([rw.x*w, rw.y*h]), np.array([lw.x*w, lw.y*h])
+
 
     # Posture check: right wrist above right shoulder AND left wrist down
     if rw_xy[1] < rs_xy[1] and lw_xy[1] > ls_xy[1] and 2*rw_xy[1] < lw_xy[1]:
@@ -303,8 +305,8 @@ def start_pipeline() -> bool:
         return False
 
 
-# Modifica qui: aggiungi stop_event come parametro
-def run(stop_event: threading.Event):
+# Modifica qui: aggiungi stop_event e frame_queue come parametri
+def run(stop_event: threading.Event, frame_queue: queue.Queue): # Aggiungi frame_queue
     if not start_pipeline():
         return
 
@@ -315,7 +317,6 @@ def run(stop_event: threading.Event):
 
     try:
         while True:
-            # Aggiungi questa riga per controllare se l'evento di stop è stato settato
             if stop_event.is_set():
                 print("Segnale di stop ricevuto, terminazione di main.py...")
                 break
@@ -361,16 +362,34 @@ def run(stop_event: threading.Event):
             if level == MAX_LEVEL:
                 cv2.putText(color_image, "Max Level Reached!", (50,100), cv2.FONT_HERSHEY_SIMPLEX,1,(0,255,0),2)
 
-            cv2.imshow("Hand & Body Tracking", color_image)
-            # Modifica qui: aggiungi un timeout a waitKey per permettere al thread di controllare l'evento di stop
-            if cv2.waitKey(1) & 0xFF == ord('q'):
-                break
+            # Invece di cv2.imshow, inserisci il frame nella coda
+            ret, buffer = cv2.imencode('.jpg', color_image)
+            if not ret:
+                continue
+            frame = buffer.tobytes()
+            try:
+                # Metti il frame nella coda. Usa un timeout per non bloccare indefinitamente
+                frame_queue.put(frame, block=False) 
+            except queue.Full:
+                # Se la coda è piena, salta il frame. Questo evita che main.py si blocchi
+                pass
+            
+            # Non è più necessario waitKey con un timeout per lo stop, 
+            # il controllo stop_event.is_set() è sufficiente.
+            # Rimuoviamo anche il controllo 'q' dato che l'interfaccia è web.
+            # if cv2.waitKey(1) & 0xFF == ord('q'):
+            #    break
+
     except RuntimeError as e:
         print(f"Runtime error: {e}")
     finally:
         print("Stopping pipeline…")
         pipeline.stop()
         pose.close()
-        hands.close() # Aggiungi la chiusura delle mani
-        cv2.destroyAllWindows()
+        hands.close()
+        # Non è necessario cv2.destroyAllWindows() qui, dato che non mostriamo finestre.
+        # cv2.destroyAllWindows()
 
+
+# Rimuovi il blocco if __name__ == "__main__": per evitare l'esecuzione automatica
+# quando main.py viene importato come modulo.
