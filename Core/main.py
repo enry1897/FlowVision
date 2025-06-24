@@ -3,7 +3,7 @@ import mediapipe as mp
 import pyrealsense2 as rs
 import numpy as np
 import time
-#from pythonosc.udp_client import SimpleUDPClient
+from pythonosc.udp_client import SimpleUDPClient
 from tensorflow.keras.models import load_model
 from tensorflow.keras.preprocessing.image import img_to_array
 import threading
@@ -38,12 +38,12 @@ depth_scale = None  # will be filled after pipeline start
 # -----------------------------------------------------------------------------
 # OSC configuration
 # -----------------------------------------------------------------------------
-# IP_LIGHTS = "192.168.1.34"   # light system
-# IP_RPI    = "192.168.1.19"   # raspberry‑pi side
-# PORT_OSC  = 8100
+IP_LIGHTS = "192.168.1.34"   # light system
+IP_RPI    = "192.168.1.19"   # raspberry‑pi side
+PORT_OSC  = 8100
 
-# client_lights = SimpleUDPClient(IP_LIGHTS, PORT_OSC)
-# client_rpi    = SimpleUDPClient(IP_RPI,  PORT_OSC)
+client_lights = SimpleUDPClient(IP_LIGHTS, PORT_OSC)
+client_rpi    = SimpleUDPClient(IP_RPI,  PORT_OSC)
 
 # -----------------------------------------------------------------------------
 # Hand‑on‑heart (tracking‑2) constants
@@ -210,7 +210,6 @@ def check_hands_on_heart(pose_landmarks, w, h, color_image):
                 pred = model_cuoricini.predict(roi_arr, verbose=0)
                 cls = int(np.argmax(pred))
                 conf = float(np.max(pred))
-                print(f"Cuoricini class: {cls}, conf: {conf:.2f}")
                 cv2.putText(color_image, f"Cuoricini:{cls} Conf:{conf:.2f}",
                             (x_min, y_min-10), cv2.FONT_HERSHEY_SIMPLEX, .7, (0,0,255), 2)
 
@@ -271,22 +270,22 @@ def calculate_level(pose_landmarks, w, h):
 # OSC send helpers (no hidden globals)
 # -----------------------------------------------------------------------------
 
-# def send_number_blinders(value: int):
-#     client_lights.send_message("/blinders", value)
-#     client_rpi.send_message("/blinders", value)
-#     print(f"→ /blinders {value}")
+def send_number_blinders(value: int):
+    client_lights.send_message("/blinders", value)
+    client_rpi.send_message("/blinders", value)
+    print(f"→ /blinders {value}")
 
 
-# def send_number_lights(value: int):
-#     client_lights.send_message("/lights", value)
-#     client_rpi.send_message("/lights", value)
-#     print(f"→ /lights {value}")
+def send_number_lights(value: int):
+    client_lights.send_message("/lights", value)
+    client_rpi.send_message("/lights", value)
+    print(f"→ /lights {value}")
 
 
-# def send_number_fire_machine(value: int):
-#     client_lights.send_message("/fireMachine", value*10)  # 0‑100 for lights
-#     client_rpi.send_message("/fireMachine", value)        # raw 0‑10 for RPi
-#     print(f"→ /fireMachine {value}")
+def send_number_fire_machine(value: int):
+    client_lights.send_message("/fireMachine", value*10)  # 0‑100 for lights
+    client_rpi.send_message("/fireMachine", value)        # raw 0‑10 for RPi
+    print(f"→ /fireMachine {value}")
 
 # -----------------------------------------------------------------------------
 # Main loop
@@ -337,7 +336,7 @@ def run(stop_event: threading.Event):
 
                 # ---------- Tracking‑2 (heart) ----------
                 heart = int(check_hands_on_heart(pose_results.pose_landmarks.landmark, w, h, color_image))
-                #send_number_lights(heart)
+                send_number_lights(heart)
 
                 # ---------- Tracking‑1 (right arm raised) ----------
                 right_arm_high = is_right_arm_raised(color_image, hands, pose_results.pose_landmarks.landmark, w, h)
@@ -348,13 +347,13 @@ def run(stop_event: threading.Event):
                         right_arm_fixed = right_arm_high
                         counter_arm = 0
 
-                #send_number_blinders(int(right_arm_fixed))
+                send_number_blinders(int(right_arm_fixed))
 
                 # ---------- Tracking‑3 (arm level) ----------
                 if not right_arm_high and time.time() - init_time > STABILITY_WAIT_TIME:
                     calculate_level(pose_results.pose_landmarks.landmark, w, h)
 
-                #send_number_fire_machine(level)
+                send_number_fire_machine(level)
 
             # HUD
             cv2.putText(color_image, f"Level:{level}", (50,50), cv2.FONT_HERSHEY_SIMPLEX,1,
@@ -362,10 +361,10 @@ def run(stop_event: threading.Event):
             if level == MAX_LEVEL:
                 cv2.putText(color_image, "Max Level Reached!", (50,100), cv2.FONT_HERSHEY_SIMPLEX,1,(0,255,0),2)
 
-            #cv2.imshow("Hand & Body Tracking", color_image)
+            cv2.imshow("Hand & Body Tracking", color_image)
             # Modifica qui: aggiungi un timeout a waitKey per permettere al thread di controllare l'evento di stop
-            # if cv2.waitKey(1) & 0xFF == ord('q'):
-            #     break
+            if cv2.waitKey(1) & 0xFF == ord('q'):
+                break
     except RuntimeError as e:
         print(f"Runtime error: {e}")
     finally:
