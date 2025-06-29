@@ -7,7 +7,7 @@
 
 - ####  Andrea Arosio &nbsp;([@andreaarooo](https://github.com/andreaarooo))<br> 10741332 &nbsp;&nbsp; andrea7.arosio@mail.polimi.it
 
-- ####  Davide Lorenzi &nbsp;([@DavideTommy](https://github.com/DavideTommy))<br> codice Davide &nbsp;&nbsp; davide1.lorenzi@mail.polimi.it
+- ####  Davide Lorenzi &nbsp;([@DavideTommy](https://github.com/DavideTommy))<br> 10502570 &nbsp;&nbsp; davide1.lorenzi@mail.polimi.it
 
 - ####  Enrico Torres &nbsp;([@enry1897](https://github.com/enry1897))<br> 10712642 &nbsp;&nbsp; enrico.torres@mail.polimi.it
 
@@ -27,6 +27,20 @@ Tensorflow 2.19.0 and Keras 3.9.2 is used for the machine learning part. Additio
 * numpy 1.26.4
 * pyrealsense2-macosx 2.54.2
 
+### RaspberryPi set up
+The RaspberryPI communicates via GPIO ports to analog 3.3V relays. This intermediate step is needed since RaspberryPI has limited current output through GPIO ports, not enough to supply properly the small motors used for the aptic feedback. The source code of OSCServer can be opened, compiled and run with QtCreator or VSCode with QtPlugin. Is also possible to launch the executable just navigating with console into the main folder in which there is the file and launch it with the following command ./OSCServer. In order to connect the RaspberryPI bodypack and the glove is also required a standard ethernet cable with 4 twisted pairs. Please note that for the current alpha developement we used a static hardcoded IP 192.168.1.19 for RaspberryPI, and so for the OSCServer. The same is applyed to the OSCServer port. The static IP is warmly recommended. If you desire to change the IP on your RaspberryPI, a correction into code and a rebuild of the project is necessary. Further improvements on the GUI will introduce more user friendly interactions and services.
+
+### How to start the project
+ - **Preliminary step**: Make sure that the OSC receiver of the Lighting software is set on the port and IP Address written in the code
+ - **Step 0**: Make sure to have created a new environment with all the requirements
+ - **Step 1**: Run the C++ code using QT framework on RaspberryPi
+ - **Step 2**: Plug the Intel RealSense camera to the computer that will run the code
+ - **Step 3**: Run the Python code (for Mac users mandatory using sudo)
+ - **Step 4**: Click on the local host link that appears on the terminal
+ - **Setp 5**: Press "Avvia" button on the interface
+ - **Step 6**: HAVE FUN!
+ - **Final step**: If you want to close the application press "ctrl + C" on the terminal
+
 ## Classifiers Architecture
 The two AI model proposed are two netowrks able to recognise two gestures.
 
@@ -45,3 +59,5 @@ Below, the two architectures are reported.
     >[Fist_Neural_Net](Auxiliar/Fist_Neural_Net.ipynb)
 
     >[Heart_Neural_Net](Auxiliar/Heart_Neural_Net.ipynb)
+
+## Challenges & lessons learned
