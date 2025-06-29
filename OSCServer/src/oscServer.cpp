@@ -2,7 +2,7 @@
 #include <QDebug>
 
 /**
- * @brief OscServer::OscServer
+ * @brief OscServer::OscServer Main OSC server class, manages interactions between
  * @author Davide Lorenzi
  * @param gpioHandler
  * @param parent
@@ -26,13 +26,13 @@ OscServer::~OscServer()
 }
 
 /**
- * @brief OscServer::start
+ * @brief OscServer::start OSC Server that starts thre server thread and begin listening
  * @param ip
  * @param port
  */
 void OscServer::start(const QString &ip, int port)
 {
-    Q_UNUSED(ip); // Liblo non accetta IP specifico direttamente
+    Q_UNUSED(ip); // Liblo does not accepts directly IP
     QString portStr = QString::number(port);
 
     qDebug() << "Starting OSC server on port" << portStr;
@@ -60,7 +60,7 @@ void OscServer::start(const QString &ip, int port)
 }
 
 /**
- * @brief OscServer::lightsHandler
+ * @brief OscServer::lightsHandler gets values from lights hand command and emits signal for start actions
  * @param path
  * @param types
  * @param argv
@@ -88,7 +88,7 @@ int OscServer::lightsHandler(const char *path, const char *types, lo_arg **argv,
 }
 
 /**
- * @brief OscServer::fireMachineHandler
+ * @brief OscServer::fireMachineHandler  gets values from fire machine hand command and emits signal for start actions
  * @param path
  * @param types
  * @param argv
@@ -142,7 +142,7 @@ int OscServer::fireMachineHandler(const char *path, const char *types, lo_arg **
 }
 
 /**
- * @brief OscServer::blindersHandler
+ * @brief OscServer::blindersHandler gets values from blinders hand command and emits signal for start actions
  * @param path
  * @param types
  * @param argv

@@ -4,7 +4,8 @@
 #define GPIO_CHIP_PATH "/dev/gpiochip0"
 
 /**
- * @brief GpioHandler::GpioHandler
+ * @brief GpioHandler::GpioHandler manages the Raspberry GPIO ports interactions
+ * @author Davide Lorenzi
  */
 GpioHandler::GpioHandler()
 {
@@ -24,9 +25,9 @@ GpioHandler::~GpioHandler()
 }
 
 /**
- * @brief GpioHandler::ensureLine
- * @param pin
- * @param output
+ * @brief GpioHandler::ensureLine verifies pins configuration
+ * @param pin selected GPIO pin
+ * @param output output status to verify
  * @return
  */
 struct gpiod_line *GpioHandler::ensureLine(int pin, bool output)
@@ -72,7 +73,7 @@ struct gpiod_line *GpioHandler::ensureLine(int pin, bool output)
 }
 
 /**
- * @brief GpioHandler::setOutput
+ * @brief GpioHandler::setOutput set specific output type on a specific GPIO pin
  * @param pin
  * @param value
  * @return
@@ -89,7 +90,7 @@ bool GpioHandler::setOutput(int pin, bool value)
         return false;
     }
 
-    // Richiede il controllo del pin come uscita
+    // Sets the GPIO in output mode
     if (gpiod_line_request_output(line, "OSCGpioServer", 0) < 0)
     {
         qCritical() << "Failed to request line as output:" << pin;
@@ -97,55 +98,22 @@ bool GpioHandler::setOutput(int pin, bool value)
         return false;
     }
 
-    // Imposta il valore
+    // Sets line value
     if (gpiod_line_set_value(line, value) < 0)
     {
         qCritical() << "Failed to set line value:" << pin;
         return false;
     }
 
-
-    // Rilascia la linea
+    //Release line
     gpiod_line_release(line);
     return value;
 }
 
 
-/*bool GpioHandler::readInput(int pin)
-{
-    if (!chip)
-        return false;
-
-    struct gpiod_line *line = gpiod_chip_get_line(chip, pin);
-    if (!line)
-    {
-        qCritical() << "Failed to get GPIO line" << pin;
-        return false;
-    }
-
-    // Richiede il controllo del pin come ingresso
-    if (gpiod_line_request_input(line, "OSCGpioServer") < 0)
-    {
-        qCritical() << "Failed to request line as input:" << pin;
-        gpiod_line_release(line);
-        return false;
-    }
-
-    // Legge il valore
-    int value = gpiod_line_get_value(line);
-    if (value < 0)
-    {
-        qCritical() << "Failed to read line value:" << pin;
-        gpiod_line_release(line);
-        return false;
-    }
-
-    gpiod_line_release(line);
-    return value == 1;
-}*/
-
 /**
- * @brief GpioHandler::readInput
+ * @brief GpioHandler::readInput read current input status
+ * @note not used at the moment
  * @param pin
  * @return
  */
@@ -175,7 +143,7 @@ bool GpioHandler::readInput(int pin)
 
 
 /**
- * @brief GpioHandler::cleanup
+ * @brief GpioHandler::cleanup line releaser
  */
 void GpioHandler::cleanup()
 {

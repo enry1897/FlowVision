@@ -2,7 +2,7 @@
 #include <QDebug>
 
 /**
- * @brief MainWindow::MainWindow
+ * @brief MainWindow::MainWindow manages the GUI application and configures all connets and launches OSCServer Backend
  * @author Davide Lorenzi
  * @param parent
  */
