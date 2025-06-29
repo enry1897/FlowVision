@@ -61,3 +61,17 @@ Below, the two architectures are reported.
     >[Heart_Neural_Net](Auxiliar/Heart_Neural_Net.ipynb)
 
 ## Challenges & lessons learned
+
+## Challenges Encountered
+
+- Incompatibility between Python libraries on Raspberry Pi made it difficult to maintain a stable development environment.  
+- Persistent integration issues between Intel RealSense and macOS limited full cross-platform support.  
+- MediaPipe struggled in low-light, low-contrast, and high-motion conditions; this was addressed through image pre-processing and a fallback detection mechanism.  
+- The lack of publicly available datasets for sequential gesture recognition led us to abandon RNN-based models in favor of CNNs triggered by threshold-based outputs from MediaPipe.  
+- Updating libraries caused incompatibility with previously trained models; we resolved this by defining a consistent `requirements.txt` file to ensure environment reproducibility.  
+- No dataset existed for the “hands on heart” gesture, so we created our own by merging and annotating data from multiple existing datasets.  
+- Docker was explored for unified deployment across platforms, but macOS restrictions prevented access to external devices such as Intel RealSense within containers.  
+- Gesture-triggered refreshes in the application caused visual flickering, which was mitigated using a hysteresis mechanism inspired by sample-and-hold logic.  
+- Due to long shipping times, we could not manufacture a custom PCB and instead used relays as a practical workaround.  
+- A motor wire broke and could not be repaired due to the absence of a soldering pad, and no replacement arrived in time — the issue remained unresolved.
+
