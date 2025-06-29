@@ -62,8 +62,6 @@ Below, the two architectures are reported.
 
 ## Challenges & lessons learned
 
-## Challenges Encountered
-
 - Incompatibility between Python libraries on Raspberry Pi made it difficult to maintain a stable development environment.  
 - Persistent integration issues between Intel RealSense and macOS limited full cross-platform support.  
 - MediaPipe struggled in low-light, low-contrast, and high-motion conditions; this was addressed through image pre-processing and a fallback detection mechanism.  
