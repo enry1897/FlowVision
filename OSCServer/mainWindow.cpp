@@ -19,6 +19,8 @@ MainWindow::MainWindow(QWidget *parent)
     if(!connect(this->ui.pb_FM_3_24     , &QPushButton::clicked, this, &MainWindow::onManualFire3Toggle)) Q_ASSERT(false);
     if(!connect(this->ui.pb_enable_all  , &QPushButton::clicked, this, &MainWindow::onPbEnableAllClicked)) Q_ASSERT(false);
     if(!connect(this->ui.pb_disable_all , &QPushButton::clicked, this, &MainWindow::onPbDisableAllClicked)) Q_ASSERT(false);
+    if(!connect(this->oscServer         , &OscServer::sendGPIOStatus,this, &MainWindow::updateGPIOStatusFromOSC)) Q_ASSERT(false);
+
 
     this->oscServer->start("192.168.1.19",8100);
 
