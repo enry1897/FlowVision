@@ -15,7 +15,7 @@
 
 
 ## Project description
-The main claim of our project is to create a system that allow people with visual impairments to control stage effects consciously. We use a camera to detect performers' gestures by using a machine learning algorithm to easily perform it. Then we send OSC messages to comunicate with RaspberryPi to controll a feedback glove that vibrate in different way according to the type of data that we have detected. Last step we comunicate with lights and other stage machine in order to obtain the desirable effect.
+The main claim of our project is to create a system that allow people with visual impairments to control stage effects consciously. We use a camera to detect performers' gestures by using a machine learning algorithm to easily perform it. Then we send OSC messages to communicate with RaspberryPi to controll a feedback glove that vibrate in different way according to the type of data that we have detected. Last step we communicate with lights and other stage machine in order to obtain the desirable effect.
 
 ### Jupyter environment
 Python 3.12.10 has been used to run notebooks and model.
