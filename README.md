@@ -14,7 +14,7 @@
 - ####  Filippo Marri &nbsp;([@filippomarri](https://github.com/filippomarri))<br> 10110508 &nbsp;&nbsp; filippo.marri@mail.polimi.it
 
 ## Demo
-To see the Demo of the software, click on the image below.
+To watch the demo of the software, click on the image below.
 <br>
 
 <p align="center">
@@ -80,6 +80,7 @@ Below, the two architectures are reported.
 ## Repository structure and file list
 - *Core*:
   >[main.py](Core/main.py): main of the final version of the project.
+
   >[app.py](Core/app.py): launcher of the project. **Script that have to be run to start the software.**
 
   - *Legacy*:
@@ -89,8 +90,11 @@ Below, the two architectures are reported.
   - *ML*:
     Machine learning models
     >[cuoricini_ep_40.h5](Core/ML/cuoricini_ep_40.h5): conv2D netwotk trained to identify the hand gesture. Used in the main code.
+
     >[modello_Python_aggiornato.h5](Core/ML/modello_Python_aggiornato.h5): MobileNet netwotk trained to recognize the fist gesture. Used in the main code.
+
     >[modello_debole_solo_sfondo_neutro.h5](Core/ML/modello_debole_solo_sfondo_neutro.h5): first attempt of MobileNet netwotk trained to recognize the fist gesture. Not used in the code.
+
     >[modello_performante.h5](Core/ML/modello_performante.h5): best Neural Netowrk that recognizes the fist gesture but working only with older versions of Keras (2.12) and Tf (2.12). Not used in the code.
 
 - *Auxiliar*:
@@ -102,6 +106,7 @@ Below, the two architectures are reported.
 - *OSCServer:*
   in this fold are contained the scripts for the RaspberryPi5.
   >[OSCServer.pro](OSCServer/OSCServer.pro): to open the project in QT Creator.
+  
   >[OSCServer](OSCServer/OSCServer): compiled filed to be run on the Konsole.
 
 - *TestingOsc:*
