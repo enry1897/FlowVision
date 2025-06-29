@@ -126,6 +126,6 @@ The RaspberryPI communicates via GPIO ports to analog 3.3V relays. This intermed
 
 - *Deliveries:*
   KeyNote presentations, pdf presentations, and pictures for the readme.
-  - *Images*: Thumbnail image and 3 pictures in 1024x748
+  - *Images*: Thumbnail image and 3 pictures in 1024x768
 
 
