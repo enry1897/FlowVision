@@ -13,6 +13,17 @@
 
 - ####  Filippo Marri &nbsp;([@filippomarri](https://github.com/filippomarri))<br> 10110508 &nbsp;&nbsp; filippo.marri@mail.polimi.it
 
+## Demo
+To see the Demo of the software, click on the image below.
+<br>
+
+<p align="center">
+  <a href="https://youtu.be/J9sf2stHmO0">
+    <img src="Deliveries/Demo.png" alt="Watch the video" width="800" style="border-radius: 8px;">
+  </a>
+</p>
+
+<br>
 
 ## Project description
 The main claim of our project is to create a system that allow people with visual impairments to control stage effects consciously. We use a camera to detect performers' gestures by using a machine learning algorithm to easily perform it. Then we send OSC messages to communicate with RaspberryPi to controll a feedback glove that vibrate in different way according to the type of data that we have detected. Last step we communicate with lights and other stage machine in order to obtain the desirable effect.
