@@ -64,15 +64,8 @@ Below, the two architectures are reported.
     <img src="Deliveries/Architectures.png" alt="alt text">
 </p>
 
-## Repository structure and file list
-- *Auxiliar*:
-    in this fold, the jupyter notebooks to train the neural networks are reported
-    >[Fist_Neural_Net](Auxiliar/Fist_Neural_Net.ipynb)
-
-    >[Heart_Neural_Net](Auxiliar/Heart_Neural_Net.ipynb)
 
 ## Challenges & lessons learned
-
 - Incompatibility between Python libraries on Raspberry Pi made it difficult to maintain a stable development environment.  
 - Persistent integration issues between Intel RealSense and macOS limited full cross-platform support.  
 - MediaPipe struggled in low-light, low-contrast, and high-motion conditions; this was addressed through image pre-processing and by implementing a fallback code.
@@ -83,4 +76,41 @@ Below, the two architectures are reported.
 - Gesture-triggered refreshes in the application caused visual flickering, which was mitigated using a hysteresis mechanism inspired by sample-and-hold logic.  
 - Due to long shipping times, we could not manufacture a custom PCB and instead used relays as a practical workaround.  
 - A motor wire broke and could not be repaired due to the absence of a soldering pad, and no replacement arrived in time — the issue remained unsolved.
+
+## Repository structure and file list
+- *Core*:
+  >[main.py](Core/main.py): main of the final version of the project.
+  >[app.py](Core/app.py): launcher of the project. **Script that have to be run to start the software.**
+
+  - *Legacy*:
+      Hackathon version of the code without neural network
+      >[FlowVision.py](Core/Legacy/FlowVision.py): main to be run to start the Hackathon version of the project.
+
+  - *ML*:
+    Machine learning models
+    >[cuoricini_ep_40.h5](Core/ML/cuoricini_ep_40.h5): conv2D netwotk trained to identify the hand gesture. Used in the main code.
+    >[modello_Python_aggiornato.h5](Core/ML/modello_Python_aggiornato.h5): MobileNet netwotk trained to recognize the fist gesture. Used in the main code.
+    >[modello_debole_solo_sfondo_neutro.h5](Core/ML/modello_debole_solo_sfondo_neutro.h5): first attempt of MobileNet netwotk trained to recognize the fist gesture. Not used in the code.
+    >[modello_performante.h5](Core/ML/modello_performante.h5): best Neural Netowrk that recognizes the fist gesture but working only with older versions of Keras (2.12) and Tf (2.12). Not used in the code.
+
+- *Auxiliar*:
+    in this fold, the jupyter notebooks to train the neural networks are reported
+    >[Fist_Neural_Net](Auxiliar/Fist_Neural_Net.ipynb)
+
+    >[Heart_Neural_Net](Auxiliar/Heart_Neural_Net.ipynb)
+
+- *OSCServer:*
+  in this fold are contained the scripts for the RaspberryPi5.
+  >[OSCServer.pro](OSCServer/OSCServer.pro): to open the project in QT Creator.
+  >[OSCServer](OSCServer/OSCServer): compiled filed to be run on the Konsole.
+
+- *TestingOsc:*
+  Python Scripts to test the OSC receiver and client.
+
+- *Processing:*
+  in this fold the Processing script used for the Hackathon presentation is contained.
+
+- *Deliveries:*
+  pictures for the readme.
+
 
