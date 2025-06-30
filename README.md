@@ -81,7 +81,7 @@ The RaspberryPI communicates via GPIO ports to analog 3.3V relays. This intermed
 - Updating libraries caused incompatibility with previously trained models; we resolved this by defining a consistent [requirements.txt](Core/requirements.txt) file to ensure environment reproducibility.  
 - No dataset existed for the “hands on heart” gesture, so we created our own by merging and annotating data from multiple existing datasets.  
 - Docker was explored for unified deployment across platforms, but macOS restrictions prevented access to external devices such as Intel RealSense within containers.  
-- Gesture-triggered refreshes in the application caused visual flickering, which was mitigated using a hysteresis mechanism inspired by sample-and-hold logic.  
+- Gesture-triggered refreshes in the application caused light flickering, which was mitigated using a hysteresis mechanism inspired by sample-and-hold logic.  
 - Due to long shipping times, we could not manufacture a custom PCB and instead used relays as a practical workaround.  
 - A motor wire broke and could not be repaired due to the absence of a soldering pad, and no replacement arrived in time — the issue remained unsolved.
 
