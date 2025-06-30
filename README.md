@@ -37,7 +37,7 @@ The main claim of our project is to create a system that allow people with visua
  - **Step 4**: Click on the local host link that appears on the terminal
  - **Setp 5**: Press "Avvia" button on the interface
  - **Step 6**: HAVE FUN!
- - **Final step**: If you want to close the application press "ctrl + C" on the terminal
+ - **Final step**: To close the application, press "ctrl + C" on the terminal
 
 ## Technology used
 ### List of device used and programming languages
@@ -113,7 +113,7 @@ The RaspberryPI communicates via GPIO ports to analog 3.3V relays. This intermed
     >[Heart_Neural_Net](Auxiliar/Heart_Neural_Net.ipynb)
 
 - *OSCServer:*
-  in this fold are contained the scripts for the RaspberryPi5.
+  in this fold, the scripts for the RaspberryPi5 are contained .
   >[OSCServer.pro](OSCServer/OSCServer.pro): to open the project in QT Creator.
 
   >[OSCServer](OSCServer/OSCServer): compiled filed to be run on the Konsole.
