@@ -69,7 +69,7 @@ Below, the two architectures are reported.
     <img src="Deliveries/Architectures.png" alt="alt text">
 </p>
 
-### RaspberryPi set up
+### RaspberryPi description and set-up
 The RaspberryPI communicates via GPIO ports to analog 3.3V relays. This intermediate step is needed since RaspberryPI has limited current output through GPIO ports, not enough to supply properly the small motors used for the aptic feedback. The source code of OSCServer can be opened, compiled and run with QtCreator or VSCode with QtPlugin. Is also possible to launch the executable just navigating with console into the main folder in which there is the file and launch it with the following command ./OSCServer. In order to connect the RaspberryPI bodypack and the glove is also required a standard ethernet cable with 4 twisted pairs. Please note that for the current alpha developement we used a static hardcoded IP 192.168.1.19 for RaspberryPI, and so for the OSCServer. The same is applyed to the OSCServer port. The static IP is warmly recommended. If you desire to change the IP on your RaspberryPI, a correction into code and a rebuild of the project is necessary. Further improvements on the GUI will introduce more user friendly interactions and services.
 
 
