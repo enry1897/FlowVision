@@ -58,7 +58,7 @@ Tensorflow 2.19.0 and Keras 3.9.2 is used for the machine learning part. Additio
 * flask 3.1.1
 
 ### Classifiers Architecture
-The two AI model proposed are two netowrks able to recognise two gestures.
+The two AI model proposed are two networks able to recognise two gestures.
 
  - **Fist gesture**: this network is implemented following a transfer learning approach. The original network adapted is MobileNet. Since the image given as input to this model have different backgrounds, a high number of parameters is required.
 
